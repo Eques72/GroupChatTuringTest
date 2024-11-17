@@ -10,6 +10,10 @@ COPY . /app
 
 WORKDIR /app
 
+# Uncomment if cmake has some random problems with CMakeCache directory being different than some other directory
+# Essentially a clean build, since "cmake --target clean" is kinda weird for me
+# RUN rm -r build/*
+
 RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build
 
 EXPOSE 12345
