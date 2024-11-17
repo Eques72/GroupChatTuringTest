@@ -47,6 +47,7 @@ target_include_directories(
     # Add dirs with header files here
     PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/PerSocketData/
 )
 
 target_link_libraries(
