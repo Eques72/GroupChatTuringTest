@@ -15,8 +15,8 @@ void message_handler(uWS::WebSocket<false, true, PerSocketData> * ws, std::strin
 
     std::cout << "Got message: " << msg << std::endl;
 
-    // ws->send(msg, opCode);
-    ws->send("Does this work?", uWS::OpCode::TEXT);
+    ws->send(msg, opCode);
+    // ws->send("Does this work?", uWS::OpCode::TEXT);
 }
 
 
