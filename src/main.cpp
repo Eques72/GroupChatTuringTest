@@ -26,19 +26,16 @@ auto main(int32_t argc, char * argv[]) -> int32_t
         "/*",
         /* Settings */
         {
-            // TODO What is compression here?
-            // .compression = uWS::CompressOptions(uWS::DEDICATED_COMPRESSOR_4KB | uWS::DEDICATED_DECOMPRESSOR),
-            .compression = uWS::DISABLED,
-            // TODO 100 MB max payload is way too much -> figure out new one
-            .maxPayloadLength = 100 * 1024 * 1024,
-            .idleTimeout = 60, // In seconds
-            .maxBackpressure = 100 * 1024 * 1024,
+            .compression = uWS::DISABLED,                       // Don't need compression, also I feel it can cause problems
+            .maxPayloadLength         = 1 * 1024 * 1024,        // 1 MB
+            .idleTimeout              = 60,                     // In seconds
+            .maxBackpressure          = 100 * 1024 * 1024,      // 100 MB
             .closeOnBackpressureLimit = false,
-            .resetIdleTimeoutOnSend = true,
-            .sendPingsAutomatically = true,
+            .resetIdleTimeoutOnSend   = true,
+            .sendPingsAutomatically   = true,
             
             /* Handlers */
-            .upgrade = nullptr,
+            .upgrade = nullptr, // Some random handlers for functionalities we don't need
             
             .open = [](auto * ws) {
                 connection_established_handler(ws);
@@ -49,9 +46,9 @@ auto main(int32_t argc, char * argv[]) -> int32_t
                 message_handler(ws, msg, opCode);
             },
             
-            .drain = nullptr,
-            .ping = nullptr,
-            .pong = nullptr,
+            .drain = nullptr,   //
+            .ping  = nullptr,   // Some random handlers for functionalities we don't need
+            .pong  = nullptr,   //
             
             .close = [](auto * ws, int code, std::string_view msg) {
                 connection_closed_handler(ws, code, msg);
@@ -60,13 +57,7 @@ auto main(int32_t argc, char * argv[]) -> int32_t
     )
     .listen(
         PORT,
-        [](auto * listenSocket)
-        {
-            if (listenSocket)
-            {
-                std::cout << "Listening on port " << PORT << std::endl;
-            }
-        }
+        [](auto * listenSocket) { }
     )
     .run();
 

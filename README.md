@@ -1,4 +1,4 @@
-# The server is set to run on port: 12345
+# The server is set to run on port: 12345 (it is hardcoded for now)
 
 # Build and run with docker
 docker compose up --build
