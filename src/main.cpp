@@ -3,17 +3,29 @@
 
 #include "App.h"
 #include "PerSocketData.hpp"
+#include "ServerHandlers.hpp"
 
 
 auto main(int32_t argc, char * argv[]) -> int32_t
 {
+    /*
+        IMPORTANT INFO FOR FUTURE - DO NOT DELETE
+        If changing from non-SSL to SSL encrypted communication you have to change all
+        uWS::WebSocket<false, true, PerSocketData> *
+        types / arguments to 
+        uWS::WebSocket<true, true, PerSocketData> *
+    */
+
+    // The port number is hardcoded since it is also hardcoded into Dockerfile and docker-compose
+    // IDK If there is a way to parametrize it in all 3 places at once from one config
     int constexpr PORT = 12345;
 
     uWS::App server = uWS::App()
     .ws<PerSocketData>(
+        /* url path */
         "/*",
+        /* Settings */
         {
-            /* Settings */
             // TODO What is compression here?
             // .compression = uWS::CompressOptions(uWS::DEDICATED_COMPRESSOR_4KB | uWS::DEDICATED_DECOMPRESSOR),
             .compression = uWS::DISABLED,
@@ -29,20 +41,20 @@ auto main(int32_t argc, char * argv[]) -> int32_t
             .upgrade = nullptr,
             
             .open = [](auto * ws) {
-                /* Open event here, you may access ws->getUserData() which points to a PerSocketData struct */
-                std::cout << "Connection opened!" << std::endl;
+                connection_established_handler(ws);
             },
             
-            .message = [](auto * ws, std::string_view msg, uWS::OpCode opCode) {
-                std::cout << "Got message: " << msg << std::endl;
-                ws->send(msg, opCode);
+            .message = [](auto * ws, std::string_view msg, uWS::OpCode opCode) 
+            {
+                message_handler(ws, msg, opCode);
             },
             
-            .drain = nullptr, .ping = nullptr, .pong = nullptr,
+            .drain = nullptr,
+            .ping = nullptr,
+            .pong = nullptr,
             
             .close = [](auto * ws, int code, std::string_view msg) {
-                /* You may access ws->getUserData() here */
-                std::cout << "Connection closed" << std::endl;
+                connection_closed_handler(ws, code, msg);
             }
         }
     )

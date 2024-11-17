@@ -39,6 +39,7 @@ add_executable(
 
     # Add source files here
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ServerHandlers/ServerHandlers.cpp
 )
 
 target_include_directories(
@@ -48,6 +49,7 @@ target_include_directories(
     PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/
     ${CMAKE_CURRENT_SOURCE_DIR}/src/PerSocketData/
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ServerHandlers/
 )
 
 target_link_libraries(
