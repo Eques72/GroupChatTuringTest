@@ -32,11 +32,12 @@ The common (and absolutely required) field for each message regardless of the me
 | ------------ | -- | 
 | error | -1 |
 | client-registration | 1 |
+| TODO More | TODO More |
 
 # Communication Protocol - reporting an error
 Whenever the server or the client try to act according to the received message / request type but something goes wrong (like the received data contained bad data, or insufficent data, or something similar) then they should sent the "error" message, that follows the following schema:
 
-### Communication Protocol - "error" schema
+### Communication Protocol - "error" message schema
 | Field name | Type | Required |
 | ---------- | ---- | -------- |
 | msgType | int32 | Yes |
@@ -68,7 +69,8 @@ Addressing info:
 Upon establishing a connection to the server the first message the client should send is the "client-registration" message (message code 1).
 > If the client makes a request / sends a message without registering themselves first: the server responds with "error" message (error code 1)
 
-### Communication Protocol - "client-registration" schema
+The "client-registration" message follows the following schema:
+### Communication Protocol - "client-registration" message schema
 | Field name | Type | Required |
 | ---------- | ---- | -------- |
 | msgType | int32 | Yes |
@@ -84,13 +86,14 @@ Upon establishing a connection to the server the first message the client should
 }
 ```
 
-# Communication Protocol - creating a lobby
+# Communication Protocol - creating / joining a game lobby
+TODO
+## Creating a lobby
+TODO
+## Joining an exisiting lobby
 TODO
 
-# Communication protocol - joining a lobby
-TODO 
-
-# Communication protocol - in-game communications
+# Communication protocol - mid-game messages
+## some message
+### the schema
 TODO
-
-# IDK if we need anything more?
