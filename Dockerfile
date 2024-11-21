@@ -16,6 +16,9 @@ WORKDIR /app
 
 RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build
 
+# TODO Check if you can do this:
+    # if the above RUN command fails -> run rm -r build/* and then the same command retry
+
 EXPOSE 12345
 
 # This command runs your application, comment out this line to compile only
