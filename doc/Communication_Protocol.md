@@ -3,7 +3,7 @@ Glossary:
 - "client" - the Android app
 
 # Server - launch
-Nothing special, init's all resources and waits for connections, lobbies, etc.
+Nothing special, inits all resources and waits for connections, lobbies, etc.
 
 # Client - launch
 1. At launch the client does not immediately connect to the server (but may PING it to make sure that is is reachable?)
@@ -32,10 +32,15 @@ The common (and absolutely required) field for each message regardless of the me
 | ------------ | -- | 
 | error | -1 |
 | client-registration | 1 |
+| client-registration | 2 |
+| create-lobby | 3 |
+| lobby-created | 4 |
+| join-lobby | 5 |
+| lobby-joined | 6 |
 | TODO More | TODO More |
 
 # Communication Protocol - reporting an error
-Whenever the server or the client try to act according to the received message / request type but something goes wrong (like the received data contained bad data, or insufficent data, or something similar) then they should sent the "error" message, that follows the following schema:
+Whenever the server or the client try to act according to the received message / request type but something goes wrong (like the received data contained bad data, or insufficent data, or something similar) then they should sent the "error" message, that should implement the following schema:
 
 ### Communication Protocol - "error" message schema
 | Field name | Type | Required |
@@ -59,21 +64,43 @@ Whenever the server or the client try to act according to the received message /
 | 1 | The client tried to request something without registering themselves first |
 | TODO | TODO |
 
+# To be determined
+We can either use numeric values to represent message type and other things OR string values?<br>
+I don't really care which it is<br>
+
+```
+// Example with numeric values
+{
+    "msgType": "-1",
+    "errorCode": "1",
+    "note": "This is the optional note regarding the error message. Can be used for additional info when debugging or something"
+}
+```
+```
+// Example with string values
+{
+    "msgType": "error",
+    "errorCode": "user-not-registered", // or something similar
+    "note": "This is the optional note regarding the error message. Can be used for additional info when debugging or something"
+}
+```
+
 # Communication Protocol - establishing the conncetion
 The connection to the server should be established like a regular Websocket connection. IP address obviously depends on the enviroment in which the server is set up.<br>
 Addressing info:
-| Port | 12345 |
-| --- | --- |
-| IP addr | Depends on the enviroment, since we are not renting out a public server |
+| 1 | Port | 12345 |
+| - | --- | --- |
+| 2 | IP addr | Depends on the enviroment, since we are not renting out a public server |
 
 Upon establishing a connection to the server the first message the client should send is the "client-registration" message (message code 1).
 > If the client makes a request / sends a message without registering themselves first: the server responds with "error" message (error code 1)
 
-The "client-registration" message follows the following schema:
+The "client-registration" message should implement the following schema:
 ### Communication Protocol - "client-registration" message schema
 | Field name | Type | Required |
 | ---------- | ---- | -------- |
 | msgType | int32 | Yes |
+| username | string | Yes |
 | TODO | TODO | TODO |
 | note | string | No |
 
@@ -81,19 +108,180 @@ The "client-registration" message follows the following schema:
 // Example client-registration message JSON
 {
     "msgType": "1",
-    // TODO More
-    "note": "This is the optional note. Can be used for additional info when debugging or something"
+    "username": "Jane Doe",
+    // TODO More fields to be determined later, depending on the project scope
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
+
+## "registration-successful" response
+After a successful registration the server will respond with "registration-successful" message, in which the server will include all the identifying data of the user, and will add the client's new generated id that the client needs to use when making subsequent calls / messages.
+
+> TODO Think about what can cause registration to fail? and add the error codes into the table 
+
+### Communication Protocol - "registration-successful" response schema
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| clientId | int32 | Yes |
+| username | string | Yes |
+| TODO | TODO | TODO |
+| note | string | No |
+
+```
+// Example registration-successful message JSON
+{
+    "msgType": "2",
+    "clientId": "13",
+    "username": "Jane Doe",
+    // TODO More fields to be determined later, depending on the project scope
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
 
 # Communication Protocol - creating / joining a game lobby
-TODO
-## Creating a lobby
-TODO
-## Joining an exisiting lobby
-TODO
+In similar fashion the client will send a "create-lobby" or "join-lobby" messsage for creating or joining a lobby (game).
+
+## Creating a lobby - "create-lobby" message
+To create a new lobby (game) the client should send a message that implements the following schema:
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| clientId | int32 | Yes |
+| username | string | Yes |
+| maxUsers | int32 | Yes |
+| note | string | No |
+
+```
+// Example create-lobby message JSON
+{
+    "msgType": "3",
+    "clientId": "13",
+    "username": "Jane Doe",
+    "maxUsers": "5",
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
+> For now we can just hard-code all of the settings (like time per round or something)
+
+> TODO Think about what can cause a create-lobby to fail, and report that in the error codes tables
+
+## "lobby-created" response message
+If the lobby is successfully created the server will respond with a message that implements the following schema:
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| lobbyId | int32 | Yes |
+| note | string | No |
+
+```
+// Example lobby-created message JSON
+{
+    "msgType": "4",
+    "lobbyId": "183",
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
+
+## Joining an exisiting lobby - "join-lobby" message
+> ASSUMPTION: To make our lives easier let's assume that joining a lobby is only available when the game has not started yet
+
+In order for the user to join an existing lobby the client needs to send a message that implements the following schema:
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| clientId | int32 | Yes |
+| lobbyId | int32 | Yes |
+| note | string | No |
+
+```
+// Example join-lobby message JSON
+{
+    "msgType": "5",
+    "clientId": "55",
+    "lobbyId": "183",
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
+
+> TODO Think about errors when trying to join a lobby and add them to error codes table
+
+## "lobby-joined" response
+If the user was added to the requested lobby, the server will respond with a message that implements the following schema:
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| lobbyId | int32 | Yes |
+| userList | array (string) | Yes |
+| lobbyCreator | string | Yes |
+| note | string | No |
+
+```
+// Example lobby-joined message JSON
+{
+    "msgType": "6",
+    "lobbyId": "183",
+    "userList": [
+        "Adrian",
+        "Jane Doe",
+        "User1",
+        "Żaba",
+    ],
+    "lobby-creator": "Jane Doe",
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
+> The userList array field will include the username of the client / user that made the request (sent a join-lobby message)
 
 # Communication protocol - mid-game messages
+> TODO Maybe also add "user-left" messages?
 ## some message
 ### the schema
+TODO
+
+## "user-joined" message
+TODO
+
+### "user-joined" schema
+TODO
+
+## "game-started" message
+TODO
+
+### "game-started" schema
+TODO
+
+## TODO Something with topics for discussion or IDK I've forgotten the game ideas
+Like new-round (with topic in it or someting)
+
+## "new-chat" message
+TODO
+
+### "new-chat" schema
+TODO
+
+## "round-ended" message
+TODO When the round ends OR something similar?
+
+### "round-ended" schema
+TODO
+
+## "impostor-vote" message
+TODO
+
+### "impostor-vote" schema
+TODO
+
+## "user-voted-out" message
+TODO
+
+### "user-voted-out" schema
+TODO
+
+## TODO If the game is more than 1 round -> make a vote if the game should continue?
+
+## "game-over" message
+TODO
+
+### "game-over" schema
 TODO
