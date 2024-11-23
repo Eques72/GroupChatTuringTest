@@ -62,6 +62,12 @@ auto main(int32_t argc, char * argv[]) -> int32_t
     .run();
 
     /*
+        Use map<int, ws *> for storing websockeets for each game
+        OR 
+        use websocket pub / sub topics for messaging people automatically?
+    */
+
+    /*
     {
         // Every thread creates its own Loop
         // We can pass the pointer to said Loop to different threads?
