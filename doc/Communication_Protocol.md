@@ -37,6 +37,11 @@ The common (and absolutely required) field for each message regardless of the me
 | lobby-created | 4 |
 | join-lobby | 5 |
 | lobby-joined | 6 |
+| user-joined | 7 |
+| game-started | 8 |
+| TODO New round / topic or something | 9 |
+| post-new-chat | 10 |
+| new-chat | 11 |
 | TODO More | TODO More |
 
 # Communication Protocol - reporting an error
@@ -60,8 +65,9 @@ Whenever the server or the client try to act according to the received message /
 ### List of error codes
 | error code | Description |
 | ---------- | ----------- |
-| 0 | RESERVED |
+| 0 | RESERVED (Generic error when no other error code fits) |
 | 1 | The client tried to request something without registering themselves first |
+| 2 | The created lobby would have too little players (maxUsers) |
 | TODO | TODO |
 
 # To be determined
@@ -116,8 +122,9 @@ The "client-registration" message should implement the following schema:
 
 ## "registration-successful" response
 After a successful registration the server will respond with "registration-successful" message, in which the server will include all the identifying data of the user, and will add the client's new generated id that the client needs to use when making subsequent calls / messages.
-
-> TODO Think about what can cause registration to fail? and add the error codes into the table 
+<br>
+<br>
+The client-registration should not have any specific reasons to return an error.
 
 ### Communication Protocol - "registration-successful" response schema
 | Field name | Type | Required |
@@ -164,7 +171,10 @@ To create a new lobby (game) the client should send a message that implements th
 ```
 > For now we can just hard-code all of the settings (like time per round or something)
 
-> TODO Think about what can cause a create-lobby to fail, and report that in the error codes tables
+Possbile reasons for failing to create a lobby
+| error code | Description |
+| ---------- | ----------- |
+| 2 | The created lobby would have too little players (maxUsers) |
 
 ## "lobby-created" response message
 If the lobby is successfully created the server will respond with a message that implements the following schema:
@@ -204,8 +214,6 @@ In order for the user to join an existing lobby the client needs to send a messa
 }
 ```
 
-> TODO Think about errors when trying to join a lobby and add them to error codes table
-
 ## "lobby-joined" response
 If the user was added to the requested lobby, the server will respond with a message that implements the following schema:
 | Field name | Type | Required |
@@ -234,31 +242,98 @@ If the user was added to the requested lobby, the server will respond with a mes
 > The userList array field will include the username of the client / user that made the request (sent a join-lobby message)
 
 # Communication protocol - mid-game messages
-> TODO Maybe also add "user-left" messages?
 ## some message
 ### the schema
 TODO
 
 ## "user-joined" message
-TODO
+Callback message that will be sent out to all clients associated with a specific lobby when a new user joins the game (needed for example for updating the "waiting lobby UI")
 
 ### "user-joined" schema
-TODO
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| lobbyId | int32 | Yes |
+| newUser | string | Yes |
+| note | string | No |
+
+```
+// Example user-joined message JSON
+{
+    "msgType": "7",
+    "lobbyId": "183",
+    "newUser": "John Doe",
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
+
+> TODO Maybe also add "user-left" messages?
 
 ## "game-started" message
-TODO
+Message sent out to all clients associated with a specific lobby when the lobby will start the game.
 
 ### "game-started" schema
-TODO
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| lobbyId | int32 | Yes |
+| note | string | No |
+
+```
+// Example game-started message JSON
+{
+    "msgType": "8",
+    "lobbyId": "183",
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
 
 ## TODO Something with topics for discussion or IDK I've forgotten the game ideas
 Like new-round (with topic in it or someting)
 
+## "post-new-chat" message
+Message sent out by a client to the server in order to "post a new chat message". If the message is accepted, the server will send out a "new-chat" message to all of the lobby's clients (the sender included)
+
+### "post-new-chat" schema
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| clientId | int32 | Yes |
+| lobbyId | int32 | Yes |
+| chatMsg | string | Yes |
+| note | string | No |
+
+```
+// Example post-new-chat message JSON
+{
+    "msgType": "10",
+    "clientId": "13",
+    "lobbyId": "183",
+    "chatMsg": "Hi guys! This is my first ever game and my fisrt ever chat message!",
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
+
 ## "new-chat" message
-TODO
+Callback message sent out by the server to all of the lobby's clients (original message sender included) that informs a new chat message has been sent out.
 
 ### "new-chat" schema
-TODO
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| lobbyId | int32 | Yes |
+| chatMsg | string | Yes |
+| note | string | No |
+
+```
+// Example new-chat message JSON
+{
+    "msgType": "11",
+    "lobbyId": "183",
+    "chatMsg": "Hi guys! This is my first ever game and my fisrt ever chat message!",
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
 
 ## "round-ended" message
 TODO When the round ends OR something similar?
