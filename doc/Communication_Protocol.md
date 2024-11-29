@@ -42,12 +42,10 @@ The common (and absolutely required) field for each message regardless of the me
 | new-round | 9 |
 | post-new-chat | 10 |
 | new-chat | 11 |
-| round-ended | 12 |
-| impostor-vote | 13 |
-| user-voted-out | 14 |
-| confidence-poll-req | 15 |
-| confidence-poll-resp | 16 |
-| game-over | 17 |
+| guess-bot-req | 12 |
+| guess-bot-resp | 13 |
+| round-ended | 14 |
+| game-over | 15 |
 
 # Communication Protocol - reporting an error
 Whenever the server or the client try to act according to the received message / request type but something goes wrong (like the received data contained bad data, or insufficent data, or something similar) then they should sent the "error" message, that should implement the following schema:
@@ -161,6 +159,7 @@ To create a new lobby (game) the client should send a message that implements th
 | clientId | int32 | Yes |
 | username | string | Yes |
 | maxUsers | int32 | Yes |
+| roundsNumber | int32 | Yes |
 | note | string | No |
 
 ```
@@ -170,6 +169,7 @@ To create a new lobby (game) the client should send a message that implements th
     "clientId": 13,
     "username": "Jane Doe",
     "maxUsers": 5,
+    "roundsNumber": 5,
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
@@ -356,10 +356,10 @@ Callback message sent out by the server to all of the lobby's clients (original 
 }
 ```
 
-## "round-ended" message
-Message sent out to all clients associated with a specific lobby when a round ends
+## "guess-bot-req" message
+Message sent out to all clients associated with a specific lobby when the times comes for a "who's the chatbot voting". After sending this message, the server expects each client to send back the "guess-bot-resp" message
 
-### "round-ended" schema
+### "guess-bot-req" schema
 | Field name | Type | Required |
 | ---------- | ---- | -------- |
 | msgType | int32 | Yes |
@@ -367,7 +367,7 @@ Message sent out to all clients associated with a specific lobby when a round en
 | note | string | No |
 
 ```
-// Example round-ended message JSON
+// Example guess-bot-req message JSON
 {
     "msgType": 12,
     "lobbyId": 183,
@@ -375,84 +375,51 @@ Message sent out to all clients associated with a specific lobby when a round en
 }
 ```
 
-## "impostor-vote" message
-Message sent by the client upon receiving the "round-ended" message AND after the user casts their vote about who the chatbot is
+## "guess-bot-resp" message
+Response message to the guess-bot-req message. Sent by the client to the server.
 
-### "impostor-vote" schema
+### "guess-bot-resp" schema
 | Field name | Type | Required |
 | ---------- | ---- | -------- |
 | msgType | int32 | Yes |
+| clientId | int32 | Yes |
 | lobbyId | int32 | Yes |
-| impostor | string | Yes |
+| chatbotNickname | string | Yes |
 | note | string | No |
 
 ```
-// Example impostor-vote message JSON
+// Example guess-bot-resp message JSON
 {
     "msgType": 13,
+    "clientId": 13,
     "lobbyId": 183,
+    "chatbotNickname": "User1",
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
 
-## "user-voted-out" message
-Message sent out to all clients associated with a specific lobby when a user has been voted out
+## "round-ended" message
+Message sent out to all clients associated with a specific lobby when a round ends. Contains the current scoreboard
 
-### "user-voted-out" schema
+### "round-ended" schema
 | Field name | Type | Required |
 | ---------- | ---- | -------- |
 | msgType | int32 | Yes |
 | lobbyId | int32 | Yes |
-| userVotedOut | string | Yes |
+| scoreboard | dict(string, int32_t) | Yes |
 | note | string | No |
 
 ```
-// Example user-voted-out message JSON
+// Example round-ended message JSON
 {
     "msgType": 14,
     "lobbyId": 183,
-    "userVotedOut": "User1",
-    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
-}
-```
-
-## "confidence-poll-req" message
-After a user is voted out by the game participants, the server then will send out this message (confidence-poll-req) to request the user (player) to make a choice if the game should continue (the player is confident that the chatbot has been kicked out already) or whether the game should continue (the player thinks  that the chatbot may still be in the game).
-> Upon receiving this message the clients should respond with "confidence-poll-resp" message
-
-### "confidence-poll-req" schema
-| Field name | Type | Required |
-| ---------- | ---- | -------- |
-| msgType | int32 | Yes |
-| lobbyId | int32 | Yes |
-| note | string | No |
-
-```
-// Example confidence-poll-req message JSON
-{
-    "msgType": 15,
-    "lobbyId": 183,
-    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
-}
-```
-
-## "confidence-poll-resp" message
-Response message to the "confidence-poll-req" message. The client should respond with info whether the user (player) is confident that the chatbot has been kicked out already
-
-### "confidence-poll-resp" schema
-| Field name | Type | Required |
-| ---------- | ---- | -------- |
-| msgType | int32 | Yes |
-| lobbyId | int32 | Yes |
-| continueTheGame | bool | Yes |
-| note | string | No |
-
-```
-// Example confidence-poll-resp message JSON
-{
-    "msgType": 16,
-    "lobbyId": 183,
-    "continueTheGame": false,
+    "scoreboard": {
+        "Adrian": 1,
+        "Jane Doe": 2,
+        "User1": 0,
+        "Żaba": 0,
+    },
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
@@ -465,17 +432,13 @@ Game over message. Message sent out to all clients associated with a specific lo
 | ---------- | ---- | -------- |
 | msgType | int32 | Yes |
 | lobbyId | int32 | Yes |
-| wasChatbotVotedOut | bool | Yes |
-| chatbotUsername | string | Yes |
 | note | string | No |
 
 ```
 // Example game-over message JSON
 {
-    "msgType": 17,
+    "msgType": 15,
     "lobbyId": 183,
-    "wasChatbotVotedOut": true,
-    "chatbotUsername": "user1",
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
