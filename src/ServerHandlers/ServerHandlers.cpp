@@ -12,7 +12,8 @@ void assign_loop_ptr(uWS::Loop * const lp_loop)
 
 void connection_established_handler(uWS::WebSocket<SSL, true, PerSocketData> * ws)
 {
-    ws->getUserData()->id = UniqueIdGenerator::generate_random_unique_id();
+    // TODO Move this to register user handler
+    // ws->getUserData()->id = UniqueIdGenerator::generate_random_unique_id();
 
     std::cout << "Connection established with " << ws->getRemoteAddressAsText() << std::endl;
 }
