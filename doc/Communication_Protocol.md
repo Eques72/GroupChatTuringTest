@@ -74,27 +74,6 @@ Whenever the server or the client try to act according to the received message /
 | 0 | RESERVED (Generic error when no other error code fits) |
 | TODO | TODO |
 
-# To be determined
-We can either use numeric values to represent message type and other things OR string values?<br>
-I don't really care which it is<br>
-
-```
-// Example with numeric values
-{
-    "msgType": "-1",
-    "errorCode": "1",
-    "note": "This is the optional note regarding the error message. Can be used for additional info when debugging or something"
-}
-```
-```
-// Example with string values
-{
-    "msgType": "error",
-    "errorCode": "user-not-registered", // or something similar
-    "note": "This is the optional note regarding the error message. Can be used for additional info when debugging or something"
-}
-```
-
 # Communication Protocol - establishing the conncetion
 The connection to the server should be established like a regular Websocket connection. IP address obviously depends on the enviroment in which the server is set up.<br>
 Addressing info:
