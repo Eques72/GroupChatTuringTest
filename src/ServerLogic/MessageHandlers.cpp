@@ -2,7 +2,7 @@
 
 using json = nlohmann::json;
 
-auto get_default_error_data() -> json
+auto ServerLogic::get_default_error_data() -> json
 {
     json resp;
 
