@@ -16,6 +16,20 @@ auto main(int32_t argc, char * argv[]) -> int32_t
         uWS::WebSocket<true, true, PerSocketData> *
     */
 
+   /*
+        IMPORTANT INFO FOR FUTURE - DO NOT DELETE
+        There is no guarantee information anywhere that the address of each websocket pointer will remain the same 
+        throughout the entire lifetime of the websocket, so instead of using the websocket and ids directly
+        we will subscribe each websocket to the topic equal to the id that that websocket / client received
+        at registration and use per topic message publishing mechanism for sending the messages to that client
+    */
+
+   /*
+        IMPORTANT INFO FOR FUTURE - DO NOT DELETE
+        There should be some kind of verification mechanism that the client does not change their id
+        but no such mechanism exists now and frankly IDK how would I even implement it
+    */
+
    // TODO Add logging
 
     int constexpr PORT = 12345;

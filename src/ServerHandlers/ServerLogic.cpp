@@ -59,12 +59,32 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
 
     switch (data.value<int32_t>("msgType", 0))
     {
-        case -1: {
-            // Got an error message
+        case -1: { // error
+            // Got an error message from client?
         } break;
 
         case 0: {
-            // This should never happen
+            // This should never happen!
+        } break;
+
+        case 1: { // client-registration-req
+            json respData = client_registration_req_handler(data);
+            
+            ws->getUserData()->id = respData.value<int32_t>("id", -1);
+            assert(ws->getUserData()->id != -1);
+
+            ws->getUserData()->username = respData.value<std::string>("username", "");
+            assert(ws->getUserData()->username.length() != 0);
+
+            mp_loop->defer(
+                [&ws, &respData]()
+                {
+                    ws->send(
+                        respData.dump(),
+                        uWS::OpCode::TEXT
+                    );
+                }
+            );
         } break;
 
         default: {

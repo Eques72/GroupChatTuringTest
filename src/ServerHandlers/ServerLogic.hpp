@@ -32,6 +32,8 @@ private:
 
     uWS::Loop * mp_loop;
 
+    auto client_registration_req_handler(nlohmann::json const & data) -> nlohmann::json;
+
 };
 
 
