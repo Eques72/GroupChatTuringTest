@@ -1,16 +1,15 @@
-#include "ServerHandlers.hpp"
+#include "ServerLogic.hpp"
 
 
-uWS::Loop * p_loop{nullptr};
-
-void assign_loop_ptr(uWS::Loop * const lp_loop)
+ServerLogic::ServerLogic(uWS::Loop * const p_loop)
 {
-    assert(lp_loop != nullptr);
+    assert(p_loop != nullptr);
 
-    p_loop = lp_loop;
+    mp_loop = p_loop;
 }
 
-void connection_established_handler(uWS::WebSocket<SSL, true, PerSocketData> * ws)
+
+void ServerLogic::connection_established_handler(uWS::WebSocket<SSL, true, PerSocketData> * ws)
 {
     // TODO Move this to register user handler
     // ws->getUserData()->id = UniqueIdGenerator::generate_random_unique_id();
@@ -41,25 +40,41 @@ void connection_established_handler(uWS::WebSocket<SSL, true, PerSocketData> * w
     }
 */
 
-void message_handler(uWS::WebSocket<false, true, PerSocketData> * ws, std::string_view msg, uWS::OpCode opCode)
+void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * ws, std::string_view msg, uWS::OpCode opCode)
 {
-    /* You may access ws->getUserData() here */
+    using json = nlohmann::json;
 
-    std::cout << "Got message: " << msg << std::endl;
+    json data = json::parse(msg, nullptr, false);
+    if (data.is_discarded())
+    {
+        // Send back an error message here?
+        return;
+    }
 
-    // ws->send(msg, opCode);
-    // ws->send("Does this work?", uWS::OpCode::TEXT);
+    if (data.contains("msgType") == false)
+    {
+        // Send back an error message here?
+        return;
+    }
 
-    p_loop->defer(
-        [&]()
-        {
-            ws->send("Hello from defer'ed function", uWS::OpCode::TEXT);
-        }
-    );
+    switch (data.value<int32_t>("msgType", 0))
+    {
+        case -1: {
+            // Got an error message
+        } break;
+
+        case 0: {
+            // This should never happen
+        } break;
+
+        default: {
+            // Send back an error message (no such msgType was defined in the Communication Protocol spec)
+        } break;
+    }
 }
 
 
-void connection_closed_handler(uWS::WebSocket<SSL, true, PerSocketData> * ws, int code, std::string_view msg)
+void ServerLogic::connection_closed_handler(uWS::WebSocket<SSL, true, PerSocketData> * ws, int code, std::string_view msg)
 {
     /* You may access ws->getUserData() here */
 

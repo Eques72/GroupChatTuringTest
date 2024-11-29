@@ -31,8 +31,8 @@ The common (and absolutely required) field for each message regardless of the me
 | Message type | id |
 | ------------ | -- | 
 | error | -1 |
-| client-registration | 1 |
-| client-registration | 2 |
+| client-registration-req | 1 |
+| client-registration-resp | 2 |
 | create-lobby-req | 3 |
 | create-lobby-resp | 4 |
 | join-lobby-req | 5 |
@@ -109,8 +109,8 @@ Addressing info:
 Upon establishing a connection to the server the first message the client should send is the "client-registration" message (message code 1).
 > If the client makes a request / sends a message without registering themselves first: the server responds with "error" message (error code 1)
 
-The "client-registration" message should implement the following schema:
-### Communication Protocol - "client-registration" message schema
+The "client-registration-req" message should implement the following schema:
+### Communication Protocol - "client-registration-req" message schema
 | Field name | Type | Required |
 | ---------- | ---- | -------- |
 | msgType | int32 | Yes |
@@ -126,13 +126,13 @@ The "client-registration" message should implement the following schema:
 }
 ```
 
-## "registration-successful" response
-After a successful registration the server will respond with "registration-successful" message, in which the server will include all the identifying data of the user, and will add the client's new generated id that the client needs to use when making subsequent calls / messages.
+## "client-registration-resp" response
+After a successful registration the server will respond with "client-registration-resp" message, in which the server will include all the identifying data of the user, and will add the client's new generated id that the client needs to use when making subsequent calls / messages.
 <br>
 <br>
 The client-registration should not have any specific reasons to return an error.
 
-### Communication Protocol - "registration-successful" response schema
+### Communication Protocol - "client-registration-resp" response schema
 | Field name | Type | Required |
 | ---------- | ---- | -------- |
 | msgType | int32 | Yes |
@@ -141,7 +141,7 @@ The client-registration should not have any specific reasons to return an error.
 | note | string | No |
 
 ```
-// Example registration-successful message JSON
+// Example client-registration-resp message JSON
 {
     "msgType": "2",
     "clientId": "13",

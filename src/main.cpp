@@ -3,7 +3,7 @@
 
 #include "App.h"
 #include "PerSocketData.hpp"
-#include "ServerHandlers.hpp"
+#include "ServerLogic.hpp"
 
 
 auto main(int32_t argc, char * argv[]) -> int32_t
@@ -20,7 +20,7 @@ auto main(int32_t argc, char * argv[]) -> int32_t
 
     int constexpr PORT = 12345;
 
-    assign_loop_ptr(uWS::Loop::get());
+    ServerLogic logic(uWS::Loop::get());
 
     uWS::App server = uWS::App()
     .ws<PerSocketData>(
@@ -39,21 +39,21 @@ auto main(int32_t argc, char * argv[]) -> int32_t
             /* Handlers */
             .upgrade = nullptr, // Some random handlers for functionalities we don't need
             
-            .open = [](auto * ws) {
-                connection_established_handler(ws);
+            .open = [&logic](auto * ws) {
+                logic.connection_established_handler(ws);
             },
             
-            .message = [](auto * ws, std::string_view msg, uWS::OpCode opCode) 
+            .message = [&logic](auto * ws, std::string_view msg, uWS::OpCode opCode) 
             {
-                message_handler(ws, msg, opCode);
+                logic.message_handler(ws, msg, opCode);
             },
             
             .drain = nullptr,   //
             .ping  = nullptr,   // Some random handlers for functionalities we don't need
             .pong  = nullptr,   //
             
-            .close = [](auto * ws, int code, std::string_view msg) {
-                connection_closed_handler(ws, code, msg);
+            .close = [&logic](auto * ws, int code, std::string_view msg) {
+                logic.connection_closed_handler(ws, code, msg);
             }
         }
     )

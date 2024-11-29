@@ -39,7 +39,8 @@ add_executable(
 
     # Add source files here
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ServerHandlers/ServerHandlers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ServerLogic/ServerLogic.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ServerLogic/MessageHandlers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/UniqueIdGenerator/UniqueIdGenerator.cpp
 )
 
@@ -52,6 +53,7 @@ target_include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/src/PerSocketData/
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ServerHandlers/
     ${CMAKE_CURRENT_SOURCE_DIR}/src/UniqueIdGenerator/
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib/nlohmann/
 )
 
 target_link_libraries(
