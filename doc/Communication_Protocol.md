@@ -17,7 +17,7 @@ The proposed-by-me communication protocol between the clients and the server is 
 
 ### Examples
 - "error" messages would be for indicating that the last message / request failed
-- Messages identified by the type "create-lobby" would indicate that the client wants to create new game lobby
+- Messages identified by the type "create-lobby-req" would indicate that the client wants to create new game lobby
 - When the client receives a message identified by the type "chat-message" it would add the payload of the message to the UI (chat box)
 - and so on...
 
@@ -33,16 +33,21 @@ The common (and absolutely required) field for each message regardless of the me
 | error | -1 |
 | client-registration | 1 |
 | client-registration | 2 |
-| create-lobby | 3 |
-| lobby-created | 4 |
-| join-lobby | 5 |
-| lobby-joined | 6 |
+| create-lobby-req | 3 |
+| create-lobby-resp | 4 |
+| join-lobby-req | 5 |
+| join-lobby-resp | 6 |
 | user-joined | 7 |
 | game-started | 8 |
-| TODO New round / topic or something | 9 |
+| new-round | 9 |
 | post-new-chat | 10 |
 | new-chat | 11 |
-| TODO More | TODO More |
+| round-ended | 12 |
+| impostor-vote | 13 |
+| user-voted-out | 14 |
+| confidence-poll-req | 15 |
+| confidence-poll-resp | 16 |
+| game-over | 17 |
 
 # Communication Protocol - reporting an error
 Whenever the server or the client try to act according to the received message / request type but something goes wrong (like the received data contained bad data, or insufficent data, or something similar) then they should sent the "error" message, that should implement the following schema:
@@ -63,6 +68,9 @@ Whenever the server or the client try to act according to the received message /
 }
 ```
 ### List of error codes
+
+> Na razie "sunny day scenario", pozniej moze uzupelnic liste bledow jak bedziemy to implementowac
+
 | error code | Description |
 | ---------- | ----------- |
 | 0 | RESERVED (Generic error when no other error code fits) |
@@ -107,15 +115,13 @@ The "client-registration" message should implement the following schema:
 | ---------- | ---- | -------- |
 | msgType | int32 | Yes |
 | username | string | Yes |
-| TODO | TODO | TODO |
 | note | string | No |
 
 ```
 // Example client-registration message JSON
 {
-    "msgType": "1",
+    "msgType": 1,
     "username": "Jane Doe",
-    // TODO More fields to be determined later, depending on the project scope
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
@@ -132,7 +138,6 @@ The client-registration should not have any specific reasons to return an error.
 | msgType | int32 | Yes |
 | clientId | int32 | Yes |
 | username | string | Yes |
-| TODO | TODO | TODO |
 | note | string | No |
 
 ```
@@ -141,15 +146,14 @@ The client-registration should not have any specific reasons to return an error.
     "msgType": "2",
     "clientId": "13",
     "username": "Jane Doe",
-    // TODO More fields to be determined later, depending on the project scope
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
 
 # Communication Protocol - creating / joining a game lobby
-In similar fashion the client will send a "create-lobby" or "join-lobby" messsage for creating or joining a lobby (game).
+In similar fashion the client will send a "create-lobby-req" or "join-lobby-req" messsage for creating or joining a lobby (game).
 
-## Creating a lobby - "create-lobby" message
+## Creating a lobby - "create-lobby-req" message
 To create a new lobby (game) the client should send a message that implements the following schema:
 | Field name | Type | Required |
 | ---------- | ---- | -------- |
@@ -160,12 +164,12 @@ To create a new lobby (game) the client should send a message that implements th
 | note | string | No |
 
 ```
-// Example create-lobby message JSON
+// Example create-lobby-req message JSON
 {
-    "msgType": "3",
-    "clientId": "13",
+    "msgType": 3,
+    "clientId": 13,
     "username": "Jane Doe",
-    "maxUsers": "5",
+    "maxUsers": 5,
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
@@ -176,7 +180,7 @@ Possbile reasons for failing to create a lobby
 | ---------- | ----------- |
 | 2 | The created lobby would have too little players (maxUsers) |
 
-## "lobby-created" response message
+## "create-lobby-resp" response message
 If the lobby is successfully created the server will respond with a message that implements the following schema:
 | Field name | Type | Required |
 | ---------- | ---- | -------- |
@@ -185,15 +189,15 @@ If the lobby is successfully created the server will respond with a message that
 | note | string | No |
 
 ```
-// Example lobby-created message JSON
+// Example create-lobby-resp message JSON
 {
-    "msgType": "4",
-    "lobbyId": "183",
+    "msgType": 4,
+    "lobbyId": 183,
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
 
-## Joining an exisiting lobby - "join-lobby" message
+## Joining an exisiting lobby - "join-lobby-req" message
 > ASSUMPTION: To make our lives easier let's assume that joining a lobby is only available when the game has not started yet
 
 In order for the user to join an existing lobby the client needs to send a message that implements the following schema:
@@ -205,16 +209,16 @@ In order for the user to join an existing lobby the client needs to send a messa
 | note | string | No |
 
 ```
-// Example join-lobby message JSON
+// Example join-lobby-req message JSON
 {
-    "msgType": "5",
-    "clientId": "55",
-    "lobbyId": "183",
+    "msgType": 5,
+    "clientId": 55,
+    "lobbyId": 183,
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
 
-## "lobby-joined" response
+## "join-lobby-resp" response
 If the user was added to the requested lobby, the server will respond with a message that implements the following schema:
 | Field name | Type | Required |
 | ---------- | ---- | -------- |
@@ -225,10 +229,10 @@ If the user was added to the requested lobby, the server will respond with a mes
 | note | string | No |
 
 ```
-// Example lobby-joined message JSON
+// Example join-lobby-resp message JSON
 {
-    "msgType": "6",
-    "lobbyId": "183",
+    "msgType": 6,
+    "lobbyId": 183,
     "userList": [
         "Adrian",
         "Jane Doe",
@@ -239,12 +243,9 @@ If the user was added to the requested lobby, the server will respond with a mes
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
-> The userList array field will include the username of the client / user that made the request (sent a join-lobby message)
+> The userList array field will include the username of the client / user that made the request (sent a join-lobby-req message)
 
 # Communication protocol - mid-game messages
-## some message
-### the schema
-TODO
 
 ## "user-joined" message
 Callback message that will be sent out to all clients associated with a specific lobby when a new user joins the game (needed for example for updating the "waiting lobby UI")
@@ -260,8 +261,8 @@ Callback message that will be sent out to all clients associated with a specific
 ```
 // Example user-joined message JSON
 {
-    "msgType": "7",
-    "lobbyId": "183",
+    "msgType": 7,
+    "lobbyId": 183,
     "newUser": "John Doe",
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
@@ -282,14 +283,34 @@ Message sent out to all clients associated with a specific lobby when the lobby 
 ```
 // Example game-started message JSON
 {
-    "msgType": "8",
-    "lobbyId": "183",
+    "msgType": 8,
+    "lobbyId": 183,
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
 
-## TODO Something with topics for discussion or IDK I've forgotten the game ideas
-Like new-round (with topic in it or someting)
+## "new-round" message
+Message sent out to all clients associated with a specific lobby when a new round starts
+
+### "new-round" schema
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| lobbyId | int32 | Yes |
+| topic | string | Yes |
+| roundDurationSec | int32 | Yes |
+| note | string | No |
+
+```
+// Example game-started message JSON
+{
+    "msgType": 9,
+    "lobbyId": 183,
+    "topic": "What do you like about being alive and definetly not about being a chatbot",
+    "roundDurationSec": 180,
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
 
 ## "post-new-chat" message
 Message sent out by a client to the server in order to "post a new chat message". If the message is accepted, the server will send out a "new-chat" message to all of the lobby's clients (the sender included)
@@ -306,9 +327,9 @@ Message sent out by a client to the server in order to "post a new chat message"
 ```
 // Example post-new-chat message JSON
 {
-    "msgType": "10",
-    "clientId": "13",
-    "lobbyId": "183",
+    "msgType": 10,
+    "clientId": 13,
+    "lobbyId": 183,
     "chatMsg": "Hi guys! This is my first ever game and my fisrt ever chat message!",
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
@@ -328,35 +349,133 @@ Callback message sent out by the server to all of the lobby's clients (original 
 ```
 // Example new-chat message JSON
 {
-    "msgType": "11",
-    "lobbyId": "183",
+    "msgType": 11,
+    "lobbyId": 183,
     "chatMsg": "Hi guys! This is my first ever game and my fisrt ever chat message!",
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
 
 ## "round-ended" message
-TODO When the round ends OR something similar?
+Message sent out to all clients associated with a specific lobby when a round ends
 
 ### "round-ended" schema
-TODO
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| lobbyId | int32 | Yes |
+| note | string | No |
+
+```
+// Example round-ended message JSON
+{
+    "msgType": 12,
+    "lobbyId": 183,
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
 
 ## "impostor-vote" message
-TODO
+Message sent by the client upon receiving the "round-ended" message AND after the user casts their vote about who the chatbot is
 
 ### "impostor-vote" schema
-TODO
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| lobbyId | int32 | Yes |
+| impostor | string | Yes |
+| note | string | No |
+
+```
+// Example impostor-vote message JSON
+{
+    "msgType": 13,
+    "lobbyId": 183,
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
 
 ## "user-voted-out" message
-TODO
+Message sent out to all clients associated with a specific lobby when a user has been voted out
 
 ### "user-voted-out" schema
-TODO
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| lobbyId | int32 | Yes |
+| userVotedOut | string | Yes |
+| note | string | No |
 
-## TODO If the game is more than 1 round -> make a vote if the game should continue?
+```
+// Example user-voted-out message JSON
+{
+    "msgType": 14,
+    "lobbyId": 183,
+    "userVotedOut": "User1",
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
+
+## "confidence-poll-req" message
+After a user is voted out by the game participants, the server then will send out this message (confidence-poll-req) to request the user (player) to make a choice if the game should continue (the player is confident that the chatbot has been kicked out already) or whether the game should continue (the player thinks  that the chatbot may still be in the game).
+> Upon receiving this message the clients should respond with "confidence-poll-resp" message
+
+### "confidence-poll-req" schema
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| lobbyId | int32 | Yes |
+| note | string | No |
+
+```
+// Example confidence-poll-req message JSON
+{
+    "msgType": 15,
+    "lobbyId": 183,
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
+
+## "confidence-poll-resp" message
+Response message to the "confidence-poll-req" message. The client should respond with info whether the user (player) is confident that the chatbot has been kicked out already
+
+### "confidence-poll-resp" schema
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| lobbyId | int32 | Yes |
+| continueTheGame | bool | Yes |
+| note | string | No |
+
+```
+// Example confidence-poll-resp message JSON
+{
+    "msgType": 16,
+    "lobbyId": 183,
+    "continueTheGame": false,
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
 
 ## "game-over" message
-TODO
+Game over message. Message sent out to all clients associated with a specific lobby when that lobby's game has ended.
 
 ### "game-over" schema
-TODO
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| lobbyId | int32 | Yes |
+| wasChatbotVotedOut | bool | Yes |
+| chatbotUsername | string | Yes |
+| note | string | No |
+
+```
+// Example game-over message JSON
+{
+    "msgType": 17,
+    "lobbyId": 183,
+    "wasChatbotVotedOut": true,
+    "chatbotUsername": "user1",
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
