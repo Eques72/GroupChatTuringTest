@@ -16,6 +16,8 @@ auto main(int32_t argc, char * argv[]) -> int32_t
         uWS::WebSocket<true, true, PerSocketData> *
     */
 
+   // TODO Add logging
+
     int constexpr PORT = 12345;
 
     assign_loop_ptr(uWS::Loop::get());
