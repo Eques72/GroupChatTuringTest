@@ -72,8 +72,6 @@ Whenever the server or the client try to act according to the received message /
 | error code | Description |
 | ---------- | ----------- |
 | 0 | RESERVED (Generic error when no other error code fits) |
-| 1 | The client tried to request something without registering themselves first |
-| 2 | The created lobby would have too little players (maxUsers) |
 | TODO | TODO |
 
 # To be determined
