@@ -1,11 +1,16 @@
 #pragma once
 
 #include <iostream>
+#include <cassert>
 
 #include "App.h"
 #include "PerSocketData.hpp"
 
 #define SSL false
+
+void assign_loop_ptr(uWS::Loop * const p_loop);
+
+auto get_loop() -> uWS::Loop * const;
 
 void connection_established_handler(uWS::WebSocket<SSL, true, PerSocketData> * ws);
 

@@ -1,6 +1,15 @@
 #include "ServerHandlers.hpp"
 
 
+uWS::Loop * p_loop{nullptr};
+
+void assign_loop_ptr(uWS::Loop * const lp_loop)
+{
+    assert(lp_loop != nullptr);
+
+    p_loop = lp_loop;
+}
+
 void connection_established_handler(uWS::WebSocket<SSL, true, PerSocketData> * ws)
 {
     /* You may access ws->getUserData() here */
@@ -15,8 +24,15 @@ void message_handler(uWS::WebSocket<false, true, PerSocketData> * ws, std::strin
 
     std::cout << "Got message: " << msg << std::endl;
 
-    ws->send(msg, opCode);
+    // ws->send(msg, opCode);
     // ws->send("Does this work?", uWS::OpCode::TEXT);
+
+    p_loop->defer(
+        [&]()
+        {
+            ws->send("Hello from defer'ed function", uWS::OpCode::TEXT);
+        }
+    );
 }
 
 

@@ -16,9 +16,9 @@ auto main(int32_t argc, char * argv[]) -> int32_t
         uWS::WebSocket<true, true, PerSocketData> *
     */
 
-    // The port number is hardcoded since it is also hardcoded into Dockerfile and docker-compose
-    // IDK If there is a way to parametrize it in all 3 places at once from one config
     int constexpr PORT = 12345;
+
+    assign_loop_ptr(uWS::Loop::get());
 
     uWS::App server = uWS::App()
     .ws<PerSocketData>(
@@ -75,9 +75,6 @@ auto main(int32_t argc, char * argv[]) -> int32_t
         //      to execute something in a safe manner
         // Here is an example of sending some data
         
-        // Pass this to other threads that use this server thread
-        auto * p_loop = uWS::Loop::get();
-
         // From other threads you can call
         p_loop->defer([&ws, &msg]() {
             // Change them to smart pointers!!!
