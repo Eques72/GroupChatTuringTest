@@ -5,6 +5,7 @@
 
 #include "App.h"
 #include "PerSocketData.hpp"
+#include "UniqueIdGenerator.hpp"
 
 #define SSL false
 
