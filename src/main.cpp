@@ -34,10 +34,11 @@ auto main(int32_t argc, char * argv[]) -> int32_t
 
     int constexpr PORT = 12345;
 
-    ServerLogic logic(uWS::Loop::get());
+    uWS::App server = uWS::App();
 
-    uWS::App server = uWS::App()
-    .ws<PerSocketData>(
+    ServerLogic logic(server, uWS::Loop::get());
+
+    server.ws<PerSocketData>(
         /* url path - not used in this project so we have a wildcard */
         "/*",
         /* Settings */
@@ -74,8 +75,9 @@ auto main(int32_t argc, char * argv[]) -> int32_t
     .listen(
         PORT,
         [](auto * listenSocket) { }
-    )
-    .run();
+    );
+    
+    server.run();
 
     return EXIT_SUCCESS;
 }

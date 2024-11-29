@@ -14,7 +14,7 @@ class ServerLogic
 {
 public:
 
-    explicit ServerLogic(uWS::Loop * const p_loop);
+    explicit ServerLogic(uWS::App & server, uWS::Loop * const p_loop);
 
     ServerLogic() = delete;
     ServerLogic(ServerLogic const &) = delete;
@@ -30,7 +30,10 @@ public:
 
 private:
 
+    uWS::App & m_server;
     uWS::Loop * mp_loop;
+
+    auto get_default_error_data() -> nlohmann::json;
 
     auto client_registration_req_handler(nlohmann::json const & data) -> nlohmann::json;
 

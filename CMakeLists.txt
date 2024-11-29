@@ -51,7 +51,7 @@ target_include_directories(
     PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/
     ${CMAKE_CURRENT_SOURCE_DIR}/src/PerSocketData/
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ServerHandlers/
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ServerLogic/
     ${CMAKE_CURRENT_SOURCE_DIR}/src/UniqueIdGenerator/
     ${CMAKE_CURRENT_SOURCE_DIR}/lib/nlohmann/
 )

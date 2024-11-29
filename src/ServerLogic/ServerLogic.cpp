@@ -1,7 +1,8 @@
 #include "ServerLogic.hpp"
 
 
-ServerLogic::ServerLogic(uWS::Loop * const p_loop)
+ServerLogic::ServerLogic(uWS::App & server, uWS::Loop * const p_loop)
+: m_server{server}
 {
     assert(p_loop != nullptr);
 
@@ -11,10 +12,7 @@ ServerLogic::ServerLogic(uWS::Loop * const p_loop)
 
 void ServerLogic::connection_established_handler(uWS::WebSocket<SSL, true, PerSocketData> * ws)
 {
-    // TODO Move this to register user handler
-    // ws->getUserData()->id = UniqueIdGenerator::generate_random_unique_id();
-
-    std::cout << "Connection established with " << ws->getRemoteAddressAsText() << std::endl;
+    //
 }
 
 /*
@@ -47,14 +45,30 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
     json data = json::parse(msg, nullptr, false);
     if (data.is_discarded())
     {
-        // Send back an error message here?
-        return;
+        json respData = get_default_error_data();
+        mp_loop->defer(
+            [ws, respData]()
+            {
+                ws->send(
+                    respData.dump(),
+                    uWS::OpCode::TEXT
+                );
+            }
+        );
     }
 
     if (data.contains("msgType") == false)
     {
-        // Send back an error message here?
-        return;
+        json respData = get_default_error_data();
+        mp_loop->defer(
+            [ws, respData]()
+            {
+                ws->send(
+                    respData.dump(),
+                    uWS::OpCode::TEXT
+                );
+            }
+        );
     }
 
     switch (data.value<int32_t>("msgType", 0))
@@ -63,23 +77,42 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
             // Got an error message from client?
         } break;
 
-        case 0: {
-            // This should never happen!
+        case 0: 
+        case 2: { // Server should NOT receive messages with those values
+            json respData;
+            respData["msgType"] = -1;
+            respData["errorCode"] = 0;
+            respData["note"] = "The server should not receive a message with that msgType id!";
+
+            mp_loop->defer(
+                [ws, respData]()
+                {
+                    ws->send(
+                        respData.dump(),
+                        uWS::OpCode::TEXT
+                    );
+                }
+            );
         } break;
 
         case 1: { // client-registration-req
             json respData = client_registration_req_handler(data);
-            
-            ws->getUserData()->id = respData.value<int32_t>("id", -1);
+
+            ws->getUserData()->id = respData.value<int32_t>("clientId", -1);
             assert(ws->getUserData()->id != -1);
 
             ws->getUserData()->username = respData.value<std::string>("username", "");
             assert(ws->getUserData()->username.length() != 0);
 
+            ws->subscribe(std::to_string(ws->getUserData()->id));
+
+            // IDK why I have to do this but when I try to pass m_server to the lamba it does not compile with a weird error
+            uWS::App * l_server = &m_server;
             mp_loop->defer(
-                [&ws, &respData]()
+                [l_server, respData]()
                 {
-                    ws->send(
+                    l_server->publish(
+                        std::to_string(respData.value<int32_t>("clientId", -1)),
                         respData.dump(),
                         uWS::OpCode::TEXT
                     );
