@@ -152,11 +152,6 @@ To create a new lobby (game) the client should send a message that implements th
 ```
 > For now we can just hard-code all of the settings (like time per round or something)
 
-Possbile reasons for failing to create a lobby
-| error code | Description |
-| ---------- | ----------- |
-| 2 | The created lobby would have too little players (maxUsers) |
-
 ## "create-lobby-resp" response message
 If the lobby is successfully created the server will respond with a message that implements the following schema:
 | Field name | Type | Required |
