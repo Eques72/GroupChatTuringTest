@@ -116,6 +116,7 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
         case 3: { // create-lobby-req
             json respData = create_lobby_req_handler(std::move(data), ws);
 
+            // Send back an error msg only. If the lobby thread gets created: it will send back create-lobby-resp message
             if (respData.empty() == false)
             {
                 std::string clientId = std::to_string(ws->getUserData()->id);
