@@ -1,12 +1,15 @@
 #pragma once
 
 #include <iostream>
+#include <unordered_map>
+#include <memory>
 #include <cassert>
 
 #include "App.h"
 #include "PerSocketData.hpp"
 #include "UniqueIdGenerator.hpp"
 #include "json.hpp"
+#include "Lobby.hpp"
 
 #define SSL false
 
@@ -32,10 +35,12 @@ private:
 
     uWS::App & m_server;
     uWS::Loop * mp_loop;
+    std::unordered_map<int32_t, std::unique_ptr<Lobby>> m_lobbies;
 
     auto get_default_error_data() -> nlohmann::json;
 
-    auto client_registration_req_handler(nlohmann::json const & data) -> nlohmann::json;
+    auto client_registration_req_handler(nlohmann::json const & data, uWS::WebSocket<false, true, PerSocketData> * & ws) -> nlohmann::json;
+    auto create_lobby_req_handler(nlohmann::json && data, uWS::WebSocket<false, true, PerSocketData> * & ws) -> nlohmann::json;
 
 };
 

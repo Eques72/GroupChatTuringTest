@@ -40,6 +40,8 @@ void ServerLogic::connection_established_handler(uWS::WebSocket<SSL, true, PerSo
 
 void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * ws, std::string_view msg, uWS::OpCode opCode)
 {
+    uWS::App * l_server = &m_server;
+
     using json = nlohmann::json;
 
     json data = json::parse(msg, nullptr, false);
@@ -96,28 +98,38 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
         } break;
 
         case 1: { // client-registration-req
-            json respData = client_registration_req_handler(data);
+            json respData = client_registration_req_handler(data, ws);
 
-            ws->getUserData()->id = respData.value<int32_t>("clientId", -1);
-            assert(ws->getUserData()->id != -1);
-
-            ws->getUserData()->username = respData.value<std::string>("username", "");
-            assert(ws->getUserData()->username.length() != 0);
-
-            ws->subscribe(std::to_string(ws->getUserData()->id));
-
-            // IDK why I have to do this but when I try to pass m_server to the lamba it does not compile with a weird error
-            uWS::App * l_server = &m_server;
+            std::string clientId = std::to_string(ws->getUserData()->id);
             mp_loop->defer(
-                [l_server, respData]()
+                [l_server, clientId, respData]()
                 {
                     l_server->publish(
-                        std::to_string(respData.value<int32_t>("clientId", -1)),
+                        clientId,
                         respData.dump(),
                         uWS::OpCode::TEXT
                     );
                 }
             );
+        } break;
+
+        case 3: { // create-lobby-req
+            json respData = create_lobby_req_handler(std::move(data), ws);
+
+            if (respData.empty() == false)
+            {
+                std::string clientId = std::to_string(ws->getUserData()->id);
+                mp_loop->defer(
+                    [l_server, clientId, respData]()
+                    {
+                        l_server->publish(
+                            clientId,
+                            respData.dump(),
+                            uWS::OpCode::TEXT
+                        );
+                    }
+                );
+            }
         } break;
 
         default: {
