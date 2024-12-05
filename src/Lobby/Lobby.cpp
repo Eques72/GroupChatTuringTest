@@ -9,9 +9,14 @@ Lobby::Lobby(uWS::App & server, uWS::Loop * p_loop, int32_t lobbyId, std::string
      m_creatorUsername{creatorUsername}, 
      m_maxUsers{maxUsers}, 
      m_roundsNumber{roundsNumber},
+     m_startGame{false},
+     m_startNewRound{false},
+     m_acceptsNewUsers{true},
      m_msgsSmph{0}
 {
     m_clientsIds.reserve(m_maxUsers);
+
+    m_msgWaitTimeout = std::chrono::system_clock::now() + std::chrono::hours(1);
 }
 
 Lobby::~Lobby()
@@ -44,14 +49,19 @@ void Lobby::startLobbyThread()
 
             std::unique_lock l_lock{self->m_mutex, std::defer_lock};
 
+            int32_t msgType{0};
             json l_msg;
             json l_resp;
             std::string l_clientId;
 
             while (l_stopToken.stop_requested() == false)
             {
-                // TODO Change .acquire to .try_acuire_for or .try_acuire_until when dealing with timeout related functionalities (like with round lenght)
-                self->m_msgsSmph.acquire();
+                if (self->m_msgsSmph.try_acquire_until(self->m_msgWaitTimeout) == false)
+                {
+                    // Timedout trying to wait for new messages
+                    goto timedout;
+                }
+
                 l_lock.lock();
                 l_msg = self->m_msgs.front();
                 self->m_msgs.pop();
@@ -63,7 +73,17 @@ void Lobby::startLobbyThread()
                     continue;
                 }
 
-                switch (l_msg.value<int32_t>("msgType", 0))
+                msgType = l_msg.value<int32_t>("msgType", 0);
+
+                if (msgType != MsgType::CREATE_LOBBY_REQ && msgType != MsgType::JOIN_LOBBY_REQ)
+                {
+                    if (self->check_if_valid_client(l_msg.value<int32_t>("clientId", -1)) == false)
+                    {
+                        continue;
+                    }
+                }
+
+                switch (msgType)
                 {
                     case MsgType::ERROR:
                     {
@@ -85,8 +105,7 @@ void Lobby::startLobbyThread()
                             data["msgType"] = static_cast<int32_t>(MsgType::USER_JOINED);
                             data["lobbyId"] = self->m_id;
                             data["newUser"] = ServerLogic::get_username_by_client_id(l_msg.value<int32_t>("clientId", -1));
-                            // self->user_joined_notify(self, l_msg.value<int32_t>("clientId", -1));
-                            self->send_to_all_clients(data);
+                            self->send_to_all_clients(data, {l_msg.value<int32_t>("clientId", -1)});
                         }
 
                     } break;
@@ -94,6 +113,11 @@ void Lobby::startLobbyThread()
                     case MsgType::POST_NEW_CHAT:
                     {
                         l_resp = self->post_new_chat_handler(self, l_msg);
+                    } break;
+
+                    case MsgType::START_GAME:
+                    {
+                        l_resp = self->start_game_handler(self, l_msg);
                     } break;
 
                     case MsgType::UNDEFINED:
@@ -109,23 +133,55 @@ void Lobby::startLobbyThread()
                     } break;
                 }
 
-                if (l_resp.empty())
+                if (l_resp.empty() == false)
                 {
-                    continue;
+                    self->mp_serverLoop->defer(
+                        [l_server, l_clientId, l_resp]()
+                        {
+                            l_server->publish(
+                                l_clientId,
+                                l_resp.dump(),
+                                uWS::OpCode::TEXT
+                            );
+                        }
+                    );    
                 }
 
-                self->mp_serverLoop->defer(
-                    [l_server, l_clientId, l_resp]()
+                timedout:
+                if (self->m_startGame)
+                {
+                    std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
+                    bool clientReadyStateTimeout = std::chrono::duration_cast<std::chrono::seconds>(now - self->m_newRoundStartTimepoint).count() > READY_STATE_CLIENT_WAIT_SECODS;
+
+                    if (clientReadyStateTimeout)
                     {
-                        l_server->publish(
-                            l_clientId,
-                            l_resp.dump(),
-                            uWS::OpCode::TEXT
-                        );
+                        self->m_startGame = false;
+                        self->m_startNewRound = true;
+
+                        // TODO Temporary untill new-round mechanism works!
+                        self->m_msgWaitTimeout = std::chrono::system_clock::now() + std::chrono::hours(1);
                     }
-                );
+                }
+
+                // if (self->m_startNewRound == false && self->m_startGame == false)
+                // {
+                //     // Check if time for new round but only if the game is not in the starting stage (m_startGame == false)
+
+                //     // TODO
+                //     // self->m_startNewRound = true;
+                // }
+
+                // if (self->m_startNewRound)
+                // {
+                //     // TODO
+
+                //     self->m_newRoundStartTimepoint = std::chrono::system_clock::now();
+                //     self->m_msgWaitTimeout = std::chrono::system_clock::now() + std::chrono::seconds(ROUND_LENGHT_SECONDS);
+                //     self->m_startNewRound = false;
+                // }
 
                 // TODO Logic 
+
             }
         }
     );
@@ -148,7 +204,7 @@ auto Lobby::check_if_valid_client(int32_t clientId) -> bool
     return std::find(m_clientsIds.begin(), m_clientsIds.end(), clientId) != m_clientsIds.end();
 }
 
-void Lobby::send_to_all_clients(nlohmann::json const & msg)
+void Lobby::send_to_all_clients(nlohmann::json const & msg, std::vector<int32_t> excludedIds)
 {
     std::vector<int32_t> l_ids;
 
@@ -163,6 +219,12 @@ void Lobby::send_to_all_clients(nlohmann::json const & msg)
 
     for (int32_t id : l_ids)
     {
+        if (std::find(excludedIds.begin(), excludedIds.end(), id) != excludedIds.end())
+        {
+            // If the id is in excludedIds -> do not send
+            continue;
+        }
+
         mp_serverLoop->defer(
             [l_server, id, msg]()
             {
@@ -207,6 +269,14 @@ auto Lobby::join_lobby_req_handler(Lobby * self, nlohmann::json const & data) ->
         return resp;
     }
 
+    if (self->m_acceptsNewUsers == false)
+    {
+        resp["msgType"] = static_cast<int32_t>(MsgType::ERROR);
+        resp["errorCode"] = 0;
+        resp["note"] = "The lobby started playing! And therefore does not accept new users";
+        return resp;
+    }
+
     self->add_client_to_lobby(data.value<int32_t>("clientId", -1));
 
     resp["msgType"] = static_cast<int32_t>(MsgType::JOIN_LOBBY_RESP);
@@ -228,16 +298,6 @@ auto Lobby::join_lobby_req_handler(Lobby * self, nlohmann::json const & data) ->
 
 auto Lobby::post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json
 {
-    int32_t clientId = data.value<int32_t>("clientId", -1);
-    if (self->check_if_valid_client(clientId) == false)
-    {
-        json resp;
-        resp["msgType"] = static_cast<int32_t>(MsgType::ERROR);
-        resp["errorCode"] = 0;
-        resp["note"] = "You are not a member of this lobby!";
-        return resp;
-    }
-
     bool isMsgInvalid = data.value<std::string>("chatMsg", "").length() == 0;
     if (isMsgInvalid)
     {
@@ -255,6 +315,24 @@ auto Lobby::post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> 
     chatMsg["note"] = std::format("Message send from: {}", ServerLogic::get_username_by_client_id(data.value<int32_t>("clientId", -1)));
 
     self->send_to_all_clients(chatMsg);
+
+    return json{};
+}
+
+auto Lobby::start_game_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json
+{
+    json msg;
+    msg["msgType"] = static_cast<int32_t>(MsgType::GAME_STARTED);
+    msg["lobbyId"] = self->m_id;
+
+    self->send_to_all_clients(msg);
+
+    self->m_startGame = true;
+    self->m_startNewRound = false;
+    self->m_newRoundStartTimepoint = std::chrono::system_clock::now();
+    self->m_msgWaitTimeout = std::chrono::system_clock::now() + std::chrono::seconds(READY_STATE_CLIENT_WAIT_SECODS);
+
+    self->m_acceptsNewUsers = false;
 
     return json{};
 }

@@ -108,6 +108,7 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
 
         case MsgType::JOIN_LOBBY_REQ:
         case MsgType::POST_NEW_CHAT:
+        case MsgType::START_GAME:
         {
             respData = pass_msg_to_lobby_handler(std::move(data), ws);
         } break;

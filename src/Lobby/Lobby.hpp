@@ -8,6 +8,7 @@
 #include <queue>
 #include <semaphore>
 #include <format>
+#include <chrono>
 #include "App.h"
 #include "json.hpp"
 #include "MsgTypeEnum.hpp"
@@ -19,6 +20,8 @@
 //      to the LobbyThread and the thread handles the message
 
 int32_t constexpr MAX_MSGS_QUEUE_LEN = 100;
+int64_t constexpr READY_STATE_CLIENT_WAIT_SECODS = 10;
+int64_t constexpr ROUND_LENGHT_SECONDS = 10;
 
 class Lobby
 {
@@ -47,6 +50,11 @@ private:
     std::string const m_creatorUsername;
     int32_t     const m_maxUsers;
     int32_t     const m_roundsNumber;
+    bool              m_startGame;
+    bool              m_startNewRound;
+    bool              m_acceptsNewUsers;
+    std::chrono::time_point<std::chrono::system_clock> m_newRoundStartTimepoint;
+    std::chrono::time_point<std::chrono::system_clock> m_msgWaitTimeout;
 
     std::mutex                   m_mutex;
     std::vector<int32_t>         m_clientsIds;
@@ -57,12 +65,12 @@ private:
 
     void add_client_to_lobby(int32_t clientId);
     auto check_if_valid_client(int32_t clientId) -> bool;
-    void send_to_all_clients(nlohmann::json const & msg);
+    void send_to_all_clients(nlohmann::json const & msg, std::vector<int32_t> excludedIds = {});
 
     auto create_lobby_req_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     auto join_lobby_req_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     void user_joined_notify(Lobby * self, int32_t newUserId);
     auto post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
-    
+    auto start_game_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     // TODO Add message handlers for each message that can be passed to the lobby
 };
