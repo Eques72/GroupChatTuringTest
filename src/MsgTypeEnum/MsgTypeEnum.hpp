@@ -19,4 +19,5 @@ enum MsgType
     GUESS_BOT_RESP           = 13,
     ROUND_ENDED              = 14,
     GAME_OVER                = 15,
+    START_GAME               = 16,
 };

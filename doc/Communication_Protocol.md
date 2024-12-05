@@ -46,6 +46,7 @@ The common (and absolutely required) field for each message regardless of the me
 | guess-bot-resp | 13 |
 | round-ended | 14 |
 | game-over | 15 |
+| start-game | 16 |
 
 # Communication Protocol - reporting an error
 Whenever the server or the client try to act according to the received message / request type but something goes wrong (like the received data contained bad data, or insufficent data, or something similar) then they should sent the "error" message, that should implement the following schema:
@@ -241,6 +242,27 @@ Callback message that will be sent out to all clients associated with a specific
 ```
 
 > TODO Maybe also add "user-left" messages?
+
+## "start-game" message
+Message sent out by the creator of the lobby to the server in order to "start the game". If the message is accepted, the server will send out a "game-started" message to all of the lobby's clients (the sender included)
+
+### "start-game" schema
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| clientId | int32 | Yes |
+| lobbyId | int32 | Yes |
+| note | string | No |
+
+```javascript
+// Example start-game message JSON
+{
+    "msgType": 16,
+    "clientId": 13,
+    "lobbyId": 183,
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
 
 ## "game-started" message
 Message sent out to all clients associated with a specific lobby when the lobby will start the game.
