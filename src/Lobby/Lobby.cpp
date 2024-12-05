@@ -81,15 +81,26 @@ void Lobby::startLobbyThread()
 
                         if (l_resp.value<int32_t>("msgType", 0) != MsgType::ERROR)
                         {
-                            self->user_joined_notify(self, l_msg.value<int32_t>("clientId", -1));
+                            json data;
+                            data["msgType"] = static_cast<int32_t>(MsgType::USER_JOINED);
+                            data["lobbyId"] = self->m_id;
+                            data["newUser"] = ServerLogic::get_username_by_client_id(l_msg.value<int32_t>("clientId", -1));
+                            // self->user_joined_notify(self, l_msg.value<int32_t>("clientId", -1));
+                            self->send_to_all_clients(data);
                         }
 
+                    } break;
+
+                    case MsgType::POST_NEW_CHAT:
+                    {
+                        l_resp = self->post_new_chat_handler(self, l_msg);
                     } break;
 
                     case MsgType::UNDEFINED:
                     case MsgType::CLIENT_REGISTRATION_REQ:
                     case MsgType::CLIENT_REGISTRATION_RESP:
                     case MsgType::USER_JOINED:
+                    case MsgType::NEW_CHAT:
                     default:
                     {
                         l_resp["msgType"] = static_cast<int32_t>(MsgType::ERROR);
@@ -130,6 +141,39 @@ void Lobby::add_client_to_lobby(int32_t clientId)
     std::lock_guard lg{m_mutex};
     
     m_clientsIds.push_back(clientId);
+}
+
+auto Lobby::check_if_valid_client(int32_t clientId) -> bool
+{
+    return std::find(m_clientsIds.begin(), m_clientsIds.end(), clientId) != m_clientsIds.end();
+}
+
+void Lobby::send_to_all_clients(nlohmann::json const & msg)
+{
+    std::vector<int32_t> l_ids;
+
+    std::unique_lock lock{m_mutex};
+    for (int32_t id : m_clientsIds)
+    {
+        l_ids.push_back(id);
+    }
+    lock.unlock();
+
+    uWS::App * l_server = &(m_server);
+
+    for (int32_t id : l_ids)
+    {
+        mp_serverLoop->defer(
+            [l_server, id, msg]()
+            {
+                l_server->publish(
+                    std::to_string(id),
+                    msg.dump(),
+                    uWS::OpCode::TEXT
+                );
+            }
+        );
+    }
 }
 
 auto Lobby::create_lobby_req_handler(Lobby * self, json const & data) -> json
@@ -182,34 +226,35 @@ auto Lobby::join_lobby_req_handler(Lobby * self, nlohmann::json const & data) ->
     return resp;
 }
 
-void Lobby::user_joined_notify(Lobby * self, int32_t newUserId)
+auto Lobby::post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json
 {
-    std::vector<int32_t> l_ids;
-
-    std::unique_lock lock{self->m_mutex};
-    for (int32_t id : self->m_clientsIds)
+    int32_t clientId = data.value<int32_t>("clientId", -1);
+    if (self->check_if_valid_client(clientId) == false)
     {
-        l_ids.push_back(id);
+        json resp;
+        resp["msgType"] = static_cast<int32_t>(MsgType::ERROR);
+        resp["errorCode"] = 0;
+        resp["note"] = "You are not a member of this lobby!";
+        return resp;
     }
-    lock.unlock();
 
-    uWS::App * l_server = &(self->m_server);
-    json l_msg;
-    l_msg["msgType"] = static_cast<int32_t>(MsgType::USER_JOINED);
-    l_msg["lobbyId"] = self->m_id;
-    l_msg["newUser"] = ServerLogic::get_username_by_client_id(newUserId);
-
-    for (int32_t id : l_ids)
+    bool isMsgInvalid = data.value<std::string>("chatMsg", "").length() == 0;
+    if (isMsgInvalid)
     {
-        self->mp_serverLoop->defer(
-            [l_server, id, l_msg]()
-            {
-                l_server->publish(
-                    std::to_string(id),
-                    l_msg.dump(),
-                    uWS::OpCode::TEXT
-                );
-            }
-        );
+        json resp;
+        resp["msgType"] = static_cast<int32_t>(MsgType::ERROR);
+        resp["errorCode"] = 0;
+        resp["note"] = "No chatMsg field in the json!";
+        return resp;
     }
+
+    json chatMsg;
+    chatMsg["msgType"] = static_cast<int32_t>(MsgType::NEW_CHAT);
+    chatMsg["lobbyId"] = self->m_id;
+    chatMsg["chatMsg"] = data.value<std::string>("chatMsg", "");
+    chatMsg["note"] = std::format("Message send from: {}", ServerLogic::get_username_by_client_id(data.value<int32_t>("clientId", -1)));
+
+    self->send_to_all_clients(chatMsg);
+
+    return json{};
 }

@@ -7,6 +7,7 @@
 #include <thread>
 #include <queue>
 #include <semaphore>
+#include <format>
 #include "App.h"
 #include "json.hpp"
 #include "MsgTypeEnum.hpp"
@@ -55,10 +56,13 @@ private:
     std::jthread m_thread;
 
     void add_client_to_lobby(int32_t clientId);
+    auto check_if_valid_client(int32_t clientId) -> bool;
+    void send_to_all_clients(nlohmann::json const & msg);
 
     auto create_lobby_req_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     auto join_lobby_req_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     void user_joined_notify(Lobby * self, int32_t newUserId);
+    auto post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     
     // TODO Add message handlers for each message that can be passed to the lobby
 };

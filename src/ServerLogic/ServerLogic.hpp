@@ -47,8 +47,10 @@ private:
 
     auto client_registration_req_handler(nlohmann::json const & data, uWS::WebSocket<false, true, PerSocketData> * & ws) -> nlohmann::json;
     auto create_lobby_req_handler(nlohmann::json && data, uWS::WebSocket<false, true, PerSocketData> * & ws) -> nlohmann::json;
-    auto join_lobby_req_handler(nlohmann::json && data, uWS::WebSocket<false, true, PerSocketData> * & ws) -> nlohmann::json;
-
+    auto pass_msg_to_lobby_handler(nlohmann::json && data, uWS::WebSocket<false, true, PerSocketData> * & ws) -> nlohmann::json;
+    // auto join_lobby_req_handler(nlohmann::json && data, uWS::WebSocket<false, true, PerSocketData> * & ws) -> nlohmann::json;
+    // auto post_new_chat_handler(nlohmann::json && data, uWS::WebSocket<false, true, PerSocketData> * & ws) -> nlohmann::json;
+    // auto common_lobby_msgs_logic(nlohmann::json const & data, uWS::WebSocket<false, true, PerSocketData> * & ws) -> nlohmann::json;
 };
 
 

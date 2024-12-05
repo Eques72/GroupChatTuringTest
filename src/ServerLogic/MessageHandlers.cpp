@@ -40,8 +40,6 @@ auto ServerLogic::client_registration_req_handler(nlohmann::json const & data, u
     ws->getUserData()->username = resp.value<std::string>("username", "");
     assert(ws->getUserData()->username.length() != 0);
 
-    ws->getUserData()->lobbyId = -1;
-
     ws->subscribe(std::to_string(ws->getUserData()->id));
 
     m_usernames.insert({
@@ -68,11 +66,6 @@ auto ServerLogic::create_lobby_req_handler(nlohmann::json && data, uWS::WebSocke
         return get_default_error_data();
     }
 
-    if (ws->getUserData()->lobbyId != -1)
-    {
-        return get_default_error_data();
-    }
-
     int32_t newLobbyId = UniqueIdGenerator::generate_random_unique_id();
 
     m_lobbies.insert({
@@ -89,16 +82,16 @@ auto ServerLogic::create_lobby_req_handler(nlohmann::json && data, uWS::WebSocke
     m_lobbies.at(newLobbyId)->pass_msg(std::move(data));
     m_lobbies.at(newLobbyId)->startLobbyThread();
 
-    ws->getUserData()->lobbyId = newLobbyId;
-
     return json{};
 }
 
-auto ServerLogic::join_lobby_req_handler(nlohmann::json && data, uWS::WebSocket<false, true, PerSocketData> * & ws) -> json
+auto ServerLogic::pass_msg_to_lobby_handler(nlohmann::json && data, uWS::WebSocket<false, true, PerSocketData> * & ws) -> nlohmann::json
 {
     if (data.value<int32_t>("clientId", -1) != ws->getUserData()->id)
     {
-        json resp = get_default_error_data();
+        json resp;
+        resp["msgType"] = static_cast<int32_t>(MsgType::ERROR);
+        resp["errorCode"] = 0;
         resp["note"] = "Bad client id!";
         return resp;
     }
@@ -106,7 +99,9 @@ auto ServerLogic::join_lobby_req_handler(nlohmann::json && data, uWS::WebSocket<
     int32_t lobbyId = data.value<int32_t>("lobbyId", -1);
     if (m_lobbies.contains(lobbyId) == false)
     {
-        json resp = get_default_error_data();
+        json resp;
+        resp["msgType"] = static_cast<int32_t>(MsgType::ERROR);
+        resp["errorCode"] = 0;
         resp["note"] = "Bad lobby id!";
         return resp;
     }

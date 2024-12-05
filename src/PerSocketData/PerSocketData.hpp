@@ -4,5 +4,5 @@
 struct PerSocketData {
     int32_t id;
     std::string username;
-    int32_t lobbyId;
+    // int32_t lobbyId; // 
 };

@@ -88,6 +88,7 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
 
         case MsgType::UNDEFINED: 
         case MsgType::CLIENT_REGISTRATION_RESP:
+        case MsgType::USER_JOINED:
         default:
         { // Server should NOT receive messages with those values
             respData["msgType"] = static_cast<int32_t>(MsgType::ERROR);
@@ -106,8 +107,9 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
         } break;
 
         case MsgType::JOIN_LOBBY_REQ:
+        case MsgType::POST_NEW_CHAT:
         {
-            respData = join_lobby_req_handler(std::move(data), ws);
+            respData = pass_msg_to_lobby_handler(std::move(data), ws);
         } break;
     }
 
@@ -145,4 +147,5 @@ auto ServerLogic::get_username_by_client_id(int32_t clientId) -> std::string
         return "";
     }
 }
+
 std::unordered_map<int32_t, std::string> ServerLogic::m_usernames;
