@@ -58,6 +58,7 @@ private:
 
     auto create_lobby_req_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     auto join_lobby_req_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
-
+    void user_joined_notify(Lobby * self, int32_t newUserId);
+    
     // TODO Add message handlers for each message that can be passed to the lobby
 };

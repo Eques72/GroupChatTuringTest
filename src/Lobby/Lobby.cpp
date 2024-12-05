@@ -78,11 +78,18 @@ void Lobby::startLobbyThread()
                     case MsgType::JOIN_LOBBY_REQ:
                     {
                         l_resp = self->join_lobby_req_handler(self, l_msg);
+
+                        if (l_resp.value<int32_t>("msgType", 0) != MsgType::ERROR)
+                        {
+                            self->user_joined_notify(self, l_msg.value<int32_t>("clientId", -1));
+                        }
+
                     } break;
 
                     case MsgType::UNDEFINED:
                     case MsgType::CLIENT_REGISTRATION_REQ:
                     case MsgType::CLIENT_REGISTRATION_RESP:
+                    case MsgType::USER_JOINED:
                     default:
                     {
                         l_resp["msgType"] = static_cast<int32_t>(MsgType::ERROR);
@@ -175,4 +182,34 @@ auto Lobby::join_lobby_req_handler(Lobby * self, nlohmann::json const & data) ->
     return resp;
 }
 
-// TODO Test join-lobby-req!
+void Lobby::user_joined_notify(Lobby * self, int32_t newUserId)
+{
+    std::vector<int32_t> l_ids;
+
+    std::unique_lock lock{self->m_mutex};
+    for (int32_t id : self->m_clientsIds)
+    {
+        l_ids.push_back(id);
+    }
+    lock.unlock();
+
+    uWS::App * l_server = &(self->m_server);
+    json l_msg;
+    l_msg["msgType"] = static_cast<int32_t>(MsgType::USER_JOINED);
+    l_msg["lobbyId"] = self->m_id;
+    l_msg["newUser"] = ServerLogic::get_username_by_client_id(newUserId);
+
+    for (int32_t id : l_ids)
+    {
+        self->mp_serverLoop->defer(
+            [l_server, id, l_msg]()
+            {
+                l_server->publish(
+                    std::to_string(id),
+                    l_msg.dump(),
+                    uWS::OpCode::TEXT
+                );
+            }
+        );
+    }
+}
