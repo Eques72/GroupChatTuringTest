@@ -82,6 +82,8 @@ auto ServerLogic::create_lobby_req_handler(nlohmann::json && data, uWS::WebSocke
     m_lobbies.at(newLobbyId)->pass_msg(std::move(data));
     m_lobbies.at(newLobbyId)->startLobbyThread();
 
+    ws->getUserData()->lobbyId = newLobbyId;
+
     return json{};
 }
 
@@ -106,7 +108,24 @@ auto ServerLogic::pass_msg_to_lobby_handler(nlohmann::json && data, uWS::WebSock
         return resp;
     }
 
+    if (m_lobbies.at(lobbyId)->isLobbyRunning() == false)
+    {
+        json resp;
+        resp["msgType"] = static_cast<int32_t>(MsgType::ERROR);
+        resp["errorCode"] = 0;
+        resp["note"] = "Lobby is no longer running!";
+
+        m_lobbies.erase(lobbyId);
+
+        return resp;
+    }
+
     m_lobbies.at(lobbyId)->pass_msg(std::move(data));
+
+    if (ws->getUserData()->lobbyId == -1)
+    {
+        ws->getUserData()->lobbyId = lobbyId;
+    }
 
     return json{};
 }

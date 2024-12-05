@@ -9,34 +9,12 @@ ServerLogic::ServerLogic(uWS::App & server, uWS::Loop * const p_loop)
     mp_loop = p_loop;
 }
 
-
 void ServerLogic::connection_established_handler(uWS::WebSocket<SSL, true, PerSocketData> * ws)
 {
-    //
+    ws->getUserData()->id = -1;
+    ws->getUserData()->lobbyId = -1;
+    ws->getUserData()->username = "";
 }
-
-/*
-    {
-        // Every thread creates its own Loop
-        // We can pass the pointer to said Loop to different threads?
-        // Each thread can then call Loop::defer() (which is the only thread safe function in the library as far as I'm aware)
-        //      to execute something in a safe manner
-        // Here is an example of sending some data
-        
-        // From other threads you can call
-        p_loop->defer([&ws, &msg]() {
-            // Change them to smart pointers!!!
-            uWS::WebSocket<false, true, PerSocketData> * p_ws = &ws; // or just "ws" depending on the types
-            std::string * p_msg = msg;
-            
-            // IDK If creating the additional pointers is needed because IDK how memory / objects / data works with lambas when passing lambdas to be executed on different thread
-
-            p_ws->send(*p_msg, uWS::OpCode::TEXT);
-        });
-
-        // The lambda should execute and send the data in a thread safe manner
-    }
-*/
 
 void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * ws, std::string_view msg, uWS::OpCode opCode)
 {
@@ -132,9 +110,16 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
 
 void ServerLogic::connection_closed_handler(uWS::WebSocket<SSL, true, PerSocketData> * ws, int code, std::string_view msg)
 {
-    /* You may access ws->getUserData() here */
+    int32_t lobbyId = ws->getUserData()->lobbyId;
+    if (m_lobbies.contains(lobbyId) && m_lobbies.at(lobbyId)->isLobbyRunning())
+    {
+        m_lobbies.at(lobbyId)->client_disconnected(ws->getUserData()->id);
 
-    std::cout << "Connection closed with " << ws->getRemoteAddressAsText() << std::endl;
+        if (m_lobbies.at(lobbyId)->isLobbyRunning() == false)
+        {
+            m_lobbies.erase(lobbyId);
+        }
+    }
 }
 
 auto ServerLogic::get_username_by_client_id(int32_t clientId) -> std::string

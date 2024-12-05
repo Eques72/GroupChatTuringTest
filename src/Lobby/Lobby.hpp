@@ -38,18 +38,22 @@ public:
     ~Lobby();
 
     void pass_msg(nlohmann::json && data);
+    void client_disconnected(int32_t clientId);
 
     void startLobbyThread();
+    auto isLobbyRunning() -> bool;
     auto requestThreadStop() -> bool;
 
 private:
 
+    bool              m_isRunning;
     int32_t     const m_id;
     uWS::App &        m_server;
     uWS::Loop * const mp_serverLoop;
     std::string const m_creatorUsername;
     int32_t     const m_maxUsers;
     int32_t     const m_roundsNumber;
+    bool              m_inLobby;
     bool              m_startGame;
     bool              m_startNewRound;
     bool              m_acceptsNewUsers;
@@ -73,4 +77,6 @@ private:
     auto post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     auto start_game_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     // TODO Add message handlers for each message that can be passed to the lobby
+
+    void close_lobby();
 };
