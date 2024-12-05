@@ -15,5 +15,7 @@ RUN bash build.sh
 
 EXPOSE 12345
 
+WORKDIR /app/bin
+
 # This command runs your application, comment out this line to compile only
-CMD ["./bin/server"]
+CMD ["./server"]

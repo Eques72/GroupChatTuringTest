@@ -9,6 +9,8 @@
 #include <semaphore>
 #include <format>
 #include <chrono>
+#include <filesystem>
+#include <fstream>
 #include "App.h"
 #include "json.hpp"
 #include "MsgTypeEnum.hpp"
@@ -22,6 +24,9 @@
 int32_t constexpr MAX_MSGS_QUEUE_LEN = 100;
 int64_t constexpr READY_STATE_CLIENT_WAIT_SECODS = 10;
 int64_t constexpr ROUND_LENGHT_SECONDS = 10;
+// TODO Path to the file with topics
+// std::filesystem::path const DEFAULT_TOPIC_FILE = "/home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/bin/topics.txt";
+std::filesystem::path const DEFAULT_TOPIC_FILE = "topics.txt";
 
 class Lobby
 {
@@ -77,6 +82,8 @@ private:
     auto post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     auto start_game_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     // TODO Add message handlers for each message that can be passed to the lobby
+
+    static auto read_topic_from_file(std::filesystem::path const & path) -> std::string;
 
     void close_lobby();
 };

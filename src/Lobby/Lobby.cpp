@@ -222,8 +222,7 @@ void Lobby::startLobbyThread()
                     json msg;
                     msg["msgType"] = static_cast<int32_t>(MsgType::NEW_ROUND);
                     msg["lobbyId"] = self->m_id;
-                    msg["topic"] = // TODO
-                    msg["topic"] = "Test topic";
+                    msg["topic"] = Lobby::read_topic_from_file(DEFAULT_TOPIC_FILE);
                     msg["roundDurationSec"] = static_cast<int32_t>(ROUND_LENGHT_SECONDS);
 
                     self->send_to_all_clients(msg);
@@ -397,6 +396,45 @@ auto Lobby::start_game_handler(Lobby * self, nlohmann::json const & data) -> nlo
     self->m_acceptsNewUsers = false;
 
     return json{};
+}
+
+auto Lobby::read_topic_from_file(std::filesystem::path const & path) -> std::string
+{
+    bool fileExists = std::filesystem::is_regular_file(path);
+
+    if (fileExists == false)
+    {
+        return "Did not find file with topics!";
+    }
+
+    std::ifstream file(path);
+    if (file.is_open() == false) {
+        return "Failed to open the file";
+    }
+
+    size_t lineCount{0};
+    std::string line;
+    while (std::getline(file, line)) {
+        lineCount++;
+    }
+
+    if (lineCount == 0) 
+    {
+        return "File has 0 lines!";
+    }
+
+    file.clear();
+    file.seekg(0);
+
+    std::srand(static_cast<unsigned>(std::time(nullptr)));
+    size_t randomLineNumber = std::rand() % lineCount;
+
+    size_t currentLine = 0;
+    while (currentLine < randomLineNumber && std::getline(file, line)) {
+        currentLine++;
+    }
+
+    return line;
 }
 
 void Lobby::close_lobby()
