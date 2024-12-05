@@ -57,6 +57,8 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
                 );
             }
         );
+
+        return;
     }
 
     if (data.contains("msgType") == false)
@@ -71,6 +73,8 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
                 );
             }
         );
+
+        return;
     }
 
     switch (data.value<int32_t>("msgType", 0))

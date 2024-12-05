@@ -75,6 +75,7 @@ auto ServerLogic::create_lobby_req_handler(nlohmann::json && data, uWS::WebSocke
         std::make_unique<Lobby>(
             m_server,
             mp_loop,
+            newLobbyId,
             data.value<std::string>("username", ""),
             data.value<int32_t>("maxUsers", 5),
             data.value<int32_t>("roundsNumber", 5)

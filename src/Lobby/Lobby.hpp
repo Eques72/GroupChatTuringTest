@@ -15,11 +15,13 @@
 // And there should be a functionalities so that the main thread can pass on the message / json data
 //      to the LobbyThread and the thread handles the message
 
+int32_t constexpr MAX_MSGS_QUEUE_LEN = 100;
+
 class Lobby
 {
 public:
 
-    explicit Lobby(uWS::App & server, uWS::Loop * p_loop, std::string const & creatorUsername, int32_t maxUsers, int32_t roundsNumber);
+    explicit Lobby(uWS::App & server, uWS::Loop * p_loop, int32_t lobbyId, std::string const & creatorUsername, int32_t maxUsers, int32_t roundsNumber);
 
     Lobby() = delete;
     Lobby(Lobby const &) = delete;
@@ -27,26 +29,32 @@ public:
     Lobby& operator=(Lobby const &) = delete;
     Lobby& operator=(Lobby &&) = delete;
 
-    ~Lobby() = default;
+    ~Lobby();
 
     void pass_msg(nlohmann::json && data);
 
     void startLobbyThread();
+    auto requestThreadStop() -> bool;
 
 private:
 
-    uWS::App & m_server;
-    uWS::Loop * const mp_loop;
+    int32_t     const m_id;
+    uWS::App &        m_server;
+    uWS::Loop * const mp_serverLoop;
     std::string const m_creatorUsername;
-    int32_t const m_maxUsers;
-    int32_t const m_roundsNumber;
+    int32_t     const m_maxUsers;
+    int32_t     const m_roundsNumber;
 
-    std::mutex m_mutex;
-    std::vector<int32_t> m_clientsIds;
-    std::queue<nlohmann::json> m_msgs;
-    std::counting_semaphore<100> m_msgsSmph;
+    std::mutex                   m_mutex;
+    std::vector<int32_t>         m_clientsIds;
+    std::queue<nlohmann::json>   m_msgs;
+    std::counting_semaphore<MAX_MSGS_QUEUE_LEN> m_msgsSmph;
+
+    std::jthread m_thread;
 
     void add_client_to_lobby(int32_t clientId);
 
-    // TODO Add message handlers for each message that can be passed to the lobby (create-lobby-req included)
+    auto create_lobby_req_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
+
+    // TODO Add message handlers for each message that can be passed to the lobby
 };
