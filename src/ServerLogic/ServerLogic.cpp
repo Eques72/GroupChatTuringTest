@@ -77,6 +77,8 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
         return;
     }
 
+    json respData;
+
     switch (data.value<int32_t>("msgType", 0))
     {
         case MsgType::ERROR:
@@ -88,59 +90,39 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
         case MsgType::CLIENT_REGISTRATION_RESP:
         default:
         { // Server should NOT receive messages with those values
-            json respData;
-            respData["msgType"] = -1;
+            respData["msgType"] = static_cast<int32_t>(MsgType::ERROR);
             respData["errorCode"] = 0;
             respData["note"] = "The server should not receive a message with that msgType id!";
-
-            mp_loop->defer(
-                [ws, respData]()
-                {
-                    ws->send(
-                        respData.dump(),
-                        uWS::OpCode::TEXT
-                    );
-                }
-            );
         } break;
 
         case MsgType::CLIENT_REGISTRATION_REQ:
         {
-            json respData = client_registration_req_handler(data, ws);
-
-            std::string clientId = std::to_string(ws->getUserData()->id);
-            mp_loop->defer(
-                [l_server, clientId, respData]()
-                {
-                    l_server->publish(
-                        clientId,
-                        respData.dump(),
-                        uWS::OpCode::TEXT
-                    );
-                }
-            );
+            respData = client_registration_req_handler(data, ws);
         } break;
 
         case MsgType::CREATE_LOBBY_REQ:
         {
-            json respData = create_lobby_req_handler(std::move(data), ws);
+            respData = create_lobby_req_handler(std::move(data), ws);
+        } break;
 
-            // Send back an error msg only. If the lobby thread gets created: it will send back create-lobby-resp message
-            if (respData.empty() == false)
+        case MsgType::JOIN_LOBBY_REQ:
+        {
+            respData = join_lobby_req_handler(std::move(data), ws);
+        } break;
+    }
+
+    if (respData.empty() == false)
+    {
+        std::string clientId = std::to_string(ws->getUserData()->id);
+        mp_loop->defer(
+            [ws, respData]()
             {
-                std::string clientId = std::to_string(ws->getUserData()->id);
-                mp_loop->defer(
-                    [l_server, clientId, respData]()
-                    {
-                        l_server->publish(
-                            clientId,
-                            respData.dump(),
-                            uWS::OpCode::TEXT
-                        );
-                    }
+                ws->send(
+                    respData.dump(),
+                    uWS::OpCode::TEXT
                 );
             }
-        } break;
+        );
     }
 }
 
@@ -150,4 +132,16 @@ void ServerLogic::connection_closed_handler(uWS::WebSocket<SSL, true, PerSocketD
     /* You may access ws->getUserData() here */
 
     std::cout << "Connection closed with " << ws->getRemoteAddressAsText() << std::endl;
+}
+
+auto ServerLogic::get_username_by_client_id(int32_t clientId) -> std::string
+{
+    if (m_usernames.contains(clientId))
+    {
+        return m_usernames.at(clientId);
+    }
+    else
+    {
+        return "";
+    }
 }

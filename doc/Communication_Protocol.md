@@ -57,7 +57,7 @@ Whenever the server or the client try to act according to the received message /
 | errorCode | int32 | Yes |
 | note | string | No |
 
-```
+```javascript
 // Example error message JSON
 {
     "msgType": "-1",
@@ -92,7 +92,7 @@ The "client-registration-req" message should implement the following schema:
 | username | string | Yes |
 | note | string | No |
 
-```
+```javascript
 // Example client-registration message JSON
 {
     "msgType": 1,
@@ -115,7 +115,7 @@ The client-registration should not have any specific reasons to return an error.
 | username | string | Yes |
 | note | string | No |
 
-```
+```javascript
 // Example client-registration-resp message JSON
 {
     "msgType": "2",
@@ -139,7 +139,7 @@ To create a new lobby (game) the client should send a message that implements th
 | roundsNumber | int32 | Yes |
 | note | string | No |
 
-```
+```javascript
 // Example create-lobby-req message JSON
 {
     "msgType": 3,
@@ -160,7 +160,7 @@ If the lobby is successfully created the server will respond with a message that
 | lobbyId | int32 | Yes |
 | note | string | No |
 
-```
+```javascript
 // Example create-lobby-resp message JSON
 {
     "msgType": 4,
@@ -180,7 +180,7 @@ In order for the user to join an existing lobby the client needs to send a messa
 | lobbyId | int32 | Yes |
 | note | string | No |
 
-```
+```javascript
 // Example join-lobby-req message JSON
 {
     "msgType": 5,
@@ -200,7 +200,7 @@ If the user was added to the requested lobby, the server will respond with a mes
 | lobbyCreator | string | Yes |
 | note | string | No |
 
-```
+```javascript
 // Example join-lobby-resp message JSON
 {
     "msgType": 6,
@@ -211,7 +211,7 @@ If the user was added to the requested lobby, the server will respond with a mes
         "User1",
         "Żaba",
     ],
-    "lobby-creator": "Jane Doe",
+    "lobbyCreator": "Jane Doe",
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
@@ -230,7 +230,7 @@ Callback message that will be sent out to all clients associated with a specific
 | newUser | string | Yes |
 | note | string | No |
 
-```
+```javascript
 // Example user-joined message JSON
 {
     "msgType": 7,
@@ -252,7 +252,7 @@ Message sent out to all clients associated with a specific lobby when the lobby 
 | lobbyId | int32 | Yes |
 | note | string | No |
 
-```
+```javascript
 // Example game-started message JSON
 {
     "msgType": 8,
@@ -273,7 +273,7 @@ Message sent out to all clients associated with a specific lobby when a new roun
 | roundDurationSec | int32 | Yes |
 | note | string | No |
 
-```
+```javascript
 // Example game-started message JSON
 {
     "msgType": 9,
@@ -296,7 +296,7 @@ Message sent out by a client to the server in order to "post a new chat message"
 | chatMsg | string | Yes |
 | note | string | No |
 
-```
+```javascript
 // Example post-new-chat message JSON
 {
     "msgType": 10,
@@ -318,7 +318,7 @@ Callback message sent out by the server to all of the lobby's clients (original 
 | chatMsg | string | Yes |
 | note | string | No |
 
-```
+```javascript
 // Example new-chat message JSON
 {
     "msgType": 11,
@@ -338,7 +338,7 @@ Message sent out to all clients associated with a specific lobby when the times 
 | lobbyId | int32 | Yes |
 | note | string | No |
 
-```
+```javascript
 // Example guess-bot-req message JSON
 {
     "msgType": 12,
@@ -359,7 +359,7 @@ Response message to the guess-bot-req message. Sent by the client to the server.
 | chatbotNickname | string | Yes |
 | note | string | No |
 
-```
+```javascript
 // Example guess-bot-resp message JSON
 {
     "msgType": 13,
@@ -381,7 +381,7 @@ Message sent out to all clients associated with a specific lobby when a round en
 | scoreboard | dict(string, int32_t) | Yes |
 | note | string | No |
 
-```
+```javascript
 // Example round-ended message JSON
 {
     "msgType": 14,
@@ -406,7 +406,7 @@ Game over message. Message sent out to all clients associated with a specific lo
 | lobbyId | int32 | Yes |
 | note | string | No |
 
-```
+```javascript
 // Example game-over message JSON
 {
     "msgType": 15,

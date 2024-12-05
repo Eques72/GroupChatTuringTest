@@ -75,12 +75,17 @@ void Lobby::startLobbyThread()
                         l_resp = self->create_lobby_req_handler(self, l_msg);
                     } break;
 
+                    case MsgType::JOIN_LOBBY_REQ:
+                    {
+                        l_resp = self->join_lobby_req_handler(self, l_msg);
+                    } break;
+
                     case MsgType::UNDEFINED:
                     case MsgType::CLIENT_REGISTRATION_REQ:
                     case MsgType::CLIENT_REGISTRATION_RESP:
                     default:
                     {
-                        l_resp["msgType"] = -1;
+                        l_resp["msgType"] = static_cast<int32_t>(MsgType::ERROR);
                         l_resp["errorCode"] = 0;
                         l_resp["note"] = "bad msgType";
                     } break;
@@ -123,8 +128,47 @@ void Lobby::add_client_to_lobby(int32_t clientId)
 auto Lobby::create_lobby_req_handler(Lobby * self, json const & data) -> json
 {
     json resp;
-    resp["msgType"] = 4;
+    resp["msgType"] = static_cast<int32_t>(MsgType::CREATE_LOBBY_RESP);
     resp["lobbyId"] = self->m_id;
+
+    return resp;
+}
+
+auto Lobby::join_lobby_req_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json
+{
+    json resp;
+
+    if (data.value<int32_t>("lobbyId", -1) != self->m_id)
+    {
+        resp["msgType"] = static_cast<int32_t>(MsgType::ERROR);
+        resp["errorCode"] = 0;
+        resp["note"] = "bad lobby id";
+        return resp;
+    }
+
+    if (self->m_clientsIds.size() >= self->m_maxUsers)
+    {
+        resp["msgType"] = static_cast<int32_t>(MsgType::ERROR);
+        resp["errorCode"] = 0;
+        resp["note"] = "too many users already in the lobby";
+        return resp;
+    }
+
+    self->add_client_to_lobby(data.value<int32_t>("clientId", -1));
+
+    resp["msgType"] = static_cast<int32_t>(MsgType::JOIN_LOBBY_RESP);
+    resp["lobbyId"] = self->m_id;
+    
+    resp["userList"] = json::array();
+    std::unique_lock lock{self->m_mutex};
+    for (int32_t id : self->m_clientsIds)
+    {
+        std::string username = ServerLogic::get_username_by_client_id(id);
+        resp["userList"].push_back(username);
+    }
+    lock.unlock();
+
+    resp["lobbyCreator"] = self->m_creatorUsername;
 
     return resp;
 }

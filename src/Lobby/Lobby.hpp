@@ -10,6 +10,7 @@
 #include "App.h"
 #include "json.hpp"
 #include "MsgTypeEnum.hpp"
+#include "ServerLogic.hpp"
 
 // TODO Rewrite the class.
 // Each Lobby (or rename LobbyThread) should be able to be run using a runThreaded() member function
@@ -56,6 +57,7 @@ private:
     void add_client_to_lobby(int32_t clientId);
 
     auto create_lobby_req_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
+    auto join_lobby_req_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
 
     // TODO Add message handlers for each message that can be passed to the lobby
 };
