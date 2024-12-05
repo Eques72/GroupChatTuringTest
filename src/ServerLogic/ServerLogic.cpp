@@ -145,3 +145,4 @@ auto ServerLogic::get_username_by_client_id(int32_t clientId) -> std::string
         return "";
     }
 }
+std::unordered_map<int32_t, std::string> ServerLogic::m_usernames;

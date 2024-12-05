@@ -14,6 +14,8 @@
 
 #define SSL false
 
+class Lobby;
+
 class ServerLogic
 {
 public:

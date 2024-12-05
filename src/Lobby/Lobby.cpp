@@ -131,6 +131,8 @@ auto Lobby::create_lobby_req_handler(Lobby * self, json const & data) -> json
     resp["msgType"] = static_cast<int32_t>(MsgType::CREATE_LOBBY_RESP);
     resp["lobbyId"] = self->m_id;
 
+    self->add_client_to_lobby(data.value<int32_t>("clientId", -1));
+
     return resp;
 }
 
@@ -172,3 +174,5 @@ auto Lobby::join_lobby_req_handler(Lobby * self, nlohmann::json const & data) ->
 
     return resp;
 }
+
+// TODO Test join-lobby-req!
