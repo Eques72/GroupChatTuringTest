@@ -55,6 +55,7 @@ target_include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ServerLogic/
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Lobby/
     ${CMAKE_CURRENT_SOURCE_DIR}/src/UniqueIdGenerator/
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/MsgTypeEnum/
     ${CMAKE_CURRENT_SOURCE_DIR}/lib/nlohmann/
 )
 

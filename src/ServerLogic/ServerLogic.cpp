@@ -79,12 +79,15 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
 
     switch (data.value<int32_t>("msgType", 0))
     {
-        case -1: { // error
+        case MsgType::ERROR:
+        {
             // Got an error message from client?
         } break;
 
-        case 0: 
-        case 2: { // Server should NOT receive messages with those values
+        case MsgType::UNDEFINED: 
+        case MsgType::CLIENT_REGISTRATION_RESP:
+        default:
+        { // Server should NOT receive messages with those values
             json respData;
             respData["msgType"] = -1;
             respData["errorCode"] = 0;
@@ -101,7 +104,8 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
             );
         } break;
 
-        case 1: { // client-registration-req
+        case MsgType::CLIENT_REGISTRATION_REQ:
+        {
             json respData = client_registration_req_handler(data, ws);
 
             std::string clientId = std::to_string(ws->getUserData()->id);
@@ -117,7 +121,8 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
             );
         } break;
 
-        case 3: { // create-lobby-req
+        case MsgType::CREATE_LOBBY_REQ:
+        {
             json respData = create_lobby_req_handler(std::move(data), ws);
 
             // Send back an error msg only. If the lobby thread gets created: it will send back create-lobby-resp message
@@ -135,10 +140,6 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
                     }
                 );
             }
-        } break;
-
-        default: {
-            // Send back an error message (no such msgType was defined in the Communication Protocol spec)
         } break;
     }
 }

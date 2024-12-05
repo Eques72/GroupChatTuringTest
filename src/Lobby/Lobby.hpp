@@ -9,6 +9,7 @@
 #include <semaphore>
 #include "App.h"
 #include "json.hpp"
+#include "MsgTypeEnum.hpp"
 
 // TODO Rewrite the class.
 // Each Lobby (or rename LobbyThread) should be able to be run using a runThreaded() member function

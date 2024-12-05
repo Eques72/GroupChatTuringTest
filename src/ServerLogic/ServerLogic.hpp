@@ -10,6 +10,7 @@
 #include "UniqueIdGenerator.hpp"
 #include "json.hpp"
 #include "Lobby.hpp"
+#include "MsgTypeEnum.hpp"
 
 #define SSL false
 

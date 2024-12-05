@@ -50,6 +50,7 @@ void Lobby::startLobbyThread()
 
             while (l_stopToken.stop_requested() == false)
             {
+                // TODO Change .acquire to .try_acuire_for or .try_acuire_until when dealing with timeout related functionalities (like with round lenght)
                 self->m_msgsSmph.acquire();
                 l_lock.lock();
                 l_msg = self->m_msgs.front();
@@ -64,19 +65,19 @@ void Lobby::startLobbyThread()
 
                 switch (l_msg.value<int32_t>("msgType", 0))
                 {
-                    case -1: // error
+                    case MsgType::ERROR:
                     {
                         // TODO
                     } break;
 
-                    case 3: // create-lobby-req
+                    case MsgType::CREATE_LOBBY_REQ:
                     {
                         l_resp = self->create_lobby_req_handler(self, l_msg);
                     } break;
 
-                    case 0: // bad msgType
-                    case 1:
-                    case 2:
+                    case MsgType::UNDEFINED:
+                    case MsgType::CLIENT_REGISTRATION_REQ:
+                    case MsgType::CLIENT_REGISTRATION_RESP:
                     default:
                     {
                         l_resp["msgType"] = -1;
