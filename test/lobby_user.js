@@ -97,7 +97,18 @@ async function main() {
     }
     // await sleep(500);
 
-    // 
+    
+    while (lastRcvdMsg['msgType'] != 12) {
+        await sleep(100);
+    }
+
+    msg = {
+        msgType: 13,
+        clientId: myClientId,
+        lobbyId: myLobbyId,
+        chatbotNickname: 'bad guess'
+    };
+    socket.send(JSON.stringify(msg));
 }
 
 main();

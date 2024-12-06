@@ -90,6 +90,18 @@ async function main() {
         console.log('Sent:\n', JSON.stringify(msg));
     }
     await sleep(500);
+
+    while (lastRcvdMsg['msgType'] != 12) {
+        await sleep(100);
+    }
+
+    msg = {
+        msgType: 13,
+        clientId: myClientId,
+        lobbyId: myLobbyId,
+        chatbotNickname: 'chatbot'
+    };
+    socket.send(JSON.stringify(msg));
 }
 
 main();

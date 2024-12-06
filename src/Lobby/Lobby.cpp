@@ -1,6 +1,17 @@
 #include "Lobby.hpp"
 
-using json = nlohmann::json;
+using json         = nlohmann::json;
+using seconds      = std::chrono::seconds;
+using time_point   = std::chrono::time_point<std::chrono::system_clock>;
+using system_clock = std::chrono::system_clock;
+
+int64_t constexpr READY_STATE_CLIENT_WAIT_SECODS = 5;
+int64_t constexpr ROUND_LENGTH_SECONDS           = 5;
+int64_t constexpr VOTING_LENGTH_SECONDS          = 5;
+int64_t constexpr ROUND_ENDED_LENGTH_SECONDS     = 5;
+// std::filesystem::path const DEFAULT_TOPIC_FILE = "/home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/bin/topics.txt";
+std::filesystem::path const DEFAULT_TOPIC_FILE = "topics.txt";
+
 
 Lobby::Lobby(uWS::App & server, uWS::Loop * p_loop, int32_t lobbyId, std::string const & creatorUsername, int32_t maxUsers, int32_t roundsNumber)
     :m_isRunning{false},
@@ -10,15 +21,19 @@ Lobby::Lobby(uWS::App & server, uWS::Loop * p_loop, int32_t lobbyId, std::string
      m_creatorUsername{creatorUsername}, 
      m_maxUsers{maxUsers}, 
      m_roundsNumber{roundsNumber},
-     m_inLobby{true},
-     m_startGame{false},
-     m_startNewRound{false},
-     m_acceptsNewUsers{true},
+     m_state{LobbyState::IN_LOBBY},
+    //  m_inLobby{true},
+    //  m_startGame{false},
+    //  m_startNewRound{false},
+    //  m_startVoting{false},
      m_msgsSmph{0}
 {
     m_clientsIds.reserve(m_maxUsers);
 
     m_msgWaitTimeout = std::chrono::system_clock::now() + std::chrono::hours(1);
+
+    // TODO Temporary for testing
+    m_currentBotNickname = "chatbot";
 }
 
 Lobby::~Lobby()
@@ -30,7 +45,7 @@ void Lobby::pass_msg(json && data)
 {
     std::lock_guard lg{m_mutex};
 
-    if (m_msgs.size() >= MAX_MSGS_QUEUE_LEN)
+    if (m_msgs.size() >= static_cast<std::size_t>(m_msgsSmph.max()))
     {
         // TODO Send back an error?
     }
@@ -53,6 +68,7 @@ void Lobby::client_disconnected(int32_t clientId)
     }
 
     m_clientsIds.erase(pos);
+    m_clientScores.erase(clientId);
 
     if (m_clientsIds.size() == 0)
     {
@@ -158,6 +174,11 @@ void Lobby::startLobbyThread()
                         l_resp = self->start_game_handler(self, l_msg);
                     } break;
 
+                    case MsgType::GUESS_BOT_RESP:
+                    {
+                        l_resp = self->guess_bot_handler(self, l_msg);
+                    } break;
+
                     case MsgType::UNDEFINED:
                     case MsgType::CLIENT_REGISTRATION_REQ:
                     case MsgType::CLIENT_REGISTRATION_RESP:
@@ -187,49 +208,117 @@ void Lobby::startLobbyThread()
                 }
 
                 timedout:
-                if (self->m_inLobby)
+                switch (self->m_state)
                 {
-                    continue;
-                }
-
-                if (self->m_startGame)
-                {
-                    std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
-                    bool clientReadyStateTimeout = std::chrono::duration_cast<std::chrono::seconds>(now - self->m_newRoundStartTimepoint).count() > READY_STATE_CLIENT_WAIT_SECODS;
-
-                    if (clientReadyStateTimeout)
+                    case LobbyState::IN_LOBBY:
                     {
-                        self->m_startGame = false;
-                        self->m_startNewRound = true;
-                    }
-                }
+                        // Do nothing
+                    } break;
 
-                if (self->m_startNewRound == false && self->m_startGame == false)
-                {
-                    // Check if time for new round but only if the game is not in the starting stage (m_startGame == false)
-
-                    auto now = std::chrono::system_clock::now();
-                    bool timeForNewRound = std::chrono::duration_cast<std::chrono::seconds>(now - self->m_newRoundStartTimepoint).count() > ROUND_LENGHT_SECONDS;
-
-                    if (timeForNewRound)
+                    case LobbyState::GAME_STARTING:
                     {
-                        self->m_startNewRound = true;
-                    }
-                }
+                        // Check if the timeout (waiting for READY_STATE_CLIENT_WAIT_SECODS) happened
+                        bool clientReadyStateTimeout = std::chrono::duration_cast<seconds>(system_clock::now() - self->m_lastStateTimepoint).count() > READY_STATE_CLIENT_WAIT_SECODS;
+                        
+                        if (clientReadyStateTimeout)
+                        {
+                            self->m_state = LobbyState::NEW_ROUND;
+                            [[fallthrough]];
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    } // No breaking! Intentional fallthrough (sometimes)
 
-                if (self->m_startNewRound)
-                {
-                    json msg;
-                    msg["msgType"] = static_cast<int32_t>(MsgType::NEW_ROUND);
-                    msg["lobbyId"] = self->m_id;
-                    msg["topic"] = Lobby::read_topic_from_file(DEFAULT_TOPIC_FILE);
-                    msg["roundDurationSec"] = static_cast<int32_t>(ROUND_LENGHT_SECONDS);
+                    case LobbyState::NEW_ROUND:
+                    {
+                        json msg;
+                        msg["msgType"] = static_cast<int32_t>(MsgType::NEW_ROUND);
+                        msg["lobbyId"] = self->m_id;
+                        msg["topic"] = Lobby::read_topic_from_file(DEFAULT_TOPIC_FILE);
+                        msg["roundDurationSec"] = static_cast<int32_t>(ROUND_LENGTH_SECONDS);
 
-                    self->send_to_all_clients(msg);
+                        self->send_to_all_clients(msg);
 
-                    self->m_newRoundStartTimepoint = std::chrono::system_clock::now();
-                    self->m_msgWaitTimeout = self->m_newRoundStartTimepoint + std::chrono::seconds(ROUND_LENGHT_SECONDS);
-                    self->m_startNewRound = false;
+                        self->m_state = LobbyState::PLAYING;
+                        self->m_lastStateTimepoint = system_clock::now();
+                        self->m_msgWaitTimeout = self->m_lastStateTimepoint + seconds(ROUND_LENGTH_SECONDS);
+                    } break;
+
+                    case LobbyState::PLAYING:
+                    {
+                        bool startVote = std::chrono::duration_cast<seconds>(system_clock::now() - self->m_lastStateTimepoint).count() > ROUND_LENGTH_SECONDS;
+
+                        if (startVote == false)
+                        {
+                            break;
+                        }
+
+                        json msg;
+                        msg["msgType"] = static_cast<int32_t>(MsgType::GUESS_BOT_REQ);
+                        msg["lobbyId"] = self->m_id;
+                        msg["votingTimeSec"] = static_cast<int32_t>(VOTING_LENGTH_SECONDS - 5);
+                        self->send_to_all_clients(msg);
+
+                        self->m_state = LobbyState::VOTING;
+                        self->m_lastStateTimepoint = system_clock::now();
+                        self->m_msgWaitTimeout = self->m_lastStateTimepoint + seconds(VOTING_LENGTH_SECONDS);
+                    } break;
+
+                    case LobbyState::VOTING:
+                    {
+                        bool voteTimeout = std::chrono::duration_cast<seconds>(system_clock::now() - self->m_lastStateTimepoint).count() > VOTING_LENGTH_SECONDS;
+
+                        if (voteTimeout == false)
+                        {
+                            break;
+                        }
+
+                        json msg;
+                        msg["msgType"] = static_cast<int32_t>(MsgType::ROUND_ENDED);
+                        msg["lobbyId"] = self->m_id;
+                        msg["scoreboard"] = json::object();
+                        std::unique_lock lock{self->m_mutex};
+                        for (std::pair<int32_t, int32_t> const & score : self->m_clientScores)
+                        {
+                            std::string username = ServerLogic::get_username_by_client_id(score.first);
+                            msg["scoreboard"][username] = score.second;
+                        }
+                        lock.unlock();
+                        self->send_to_all_clients(msg);
+
+                        self->m_state = LobbyState::ROUND_ENDED;
+                        self->m_lastStateTimepoint = system_clock::now();
+                        self->m_msgWaitTimeout = self->m_lastStateTimepoint + seconds(ROUND_ENDED_LENGTH_SECONDS);
+                    } break;
+
+                    case LobbyState::ROUND_ENDED:
+                    {
+                        bool timeForNewRound = std::chrono::duration_cast<seconds>(system_clock::now() - self->m_lastStateTimepoint).count() > ROUND_ENDED_LENGTH_SECONDS;
+
+                        if (timeForNewRound == false)
+                        {
+                            break;
+                        }
+
+                        // { // TODO This is temporary - for testing
+                        //     json msg;
+                        //     msg["msgType"] = static_cast<int32_t>(MsgType::NEW_CHAT);
+                        //     msg["lobbyId"] = self->m_id;
+                        //     msg["chatMsg"] = "Scoreboard hidden! New round!!";
+                        //     self->send_to_all_clients(msg);
+                        // }
+
+                        self->m_state = LobbyState::NEW_ROUND;
+                        self->m_lastStateTimepoint = system_clock::now();
+                        self->m_msgWaitTimeout = self->m_lastStateTimepoint + seconds(1); // This is here only because otherwise the try_acquire breaks
+                    } break;
+
+                    default:
+                    {
+                        // Should never happen
+                    } break;
                 }
             }
 
@@ -257,6 +346,7 @@ void Lobby::add_client_to_lobby(int32_t clientId)
     std::lock_guard lg{m_mutex};
     
     m_clientsIds.push_back(clientId);
+    m_clientScores.insert({clientId, 0});
 }
 
 auto Lobby::check_if_valid_client(int32_t clientId) -> bool
@@ -300,11 +390,22 @@ void Lobby::send_to_all_clients(nlohmann::json const & msg, std::vector<int32_t>
 
 auto Lobby::create_lobby_req_handler(Lobby * self, json const & data) -> json
 {
+    if (self->m_state != LobbyState::IN_LOBBY)
+    {
+        json msg;
+        msg["msgType"] = static_cast<int32_t>(MsgType::ERROR);
+        msg["errorCode"] = 0;
+        msg["note"] = "create-loby-req when not in lobby!";
+        return msg;
+    }
+
     json resp;
     resp["msgType"] = static_cast<int32_t>(MsgType::CREATE_LOBBY_RESP);
     resp["lobbyId"] = self->m_id;
 
     self->add_client_to_lobby(data.value<int32_t>("clientId", -1));
+
+    self->m_state = LobbyState::IN_LOBBY;
 
     return resp;
 }
@@ -329,7 +430,7 @@ auto Lobby::join_lobby_req_handler(Lobby * self, nlohmann::json const & data) ->
         return resp;
     }
 
-    if (self->m_acceptsNewUsers == false)
+    if (self->m_state != LobbyState::IN_LOBBY)
     {
         resp["msgType"] = static_cast<int32_t>(MsgType::ERROR);
         resp["errorCode"] = 0;
@@ -381,19 +482,62 @@ auto Lobby::post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> 
 
 auto Lobby::start_game_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json
 {
+    if (self->m_state != LobbyState::IN_LOBBY)
+    {
+        json msg;
+        msg["msgType"] = static_cast<int32_t>(MsgType::ERROR);
+        msg["errorCode"] = 0;
+        msg["note"] = "start-game when not in lobby!";
+        return msg;
+    }
+    
     json msg;
     msg["msgType"] = static_cast<int32_t>(MsgType::GAME_STARTED);
     msg["lobbyId"] = self->m_id;
 
     self->send_to_all_clients(msg);
 
-    self->m_inLobby = false;
-    self->m_startGame = true;
-    self->m_startNewRound = false;
-    self->m_newRoundStartTimepoint = std::chrono::system_clock::now();
-    self->m_msgWaitTimeout = std::chrono::system_clock::now() + std::chrono::seconds(READY_STATE_CLIENT_WAIT_SECODS);
+    self->m_state = LobbyState::GAME_STARTING;
+    // self->m_inLobby = false;
+    // self->m_startGame = true;
+    // self->m_startNewRound = false;
+    
+    // self->m_newRoundStartTimepoint = std::chrono::system_clock::now();
+    self->m_lastStateTimepoint = std::chrono::system_clock::now();
+    
+    self->m_msgWaitTimeout = std::chrono::system_clock::now() + seconds(READY_STATE_CLIENT_WAIT_SECODS);
 
-    self->m_acceptsNewUsers = false;
+    return json{};
+}
+
+auto Lobby::guess_bot_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json
+{
+    if (self->m_state != LobbyState::VOTING)
+    {
+        json msg;
+        msg["msgType"] = static_cast<int32_t>(MsgType::ERROR);
+        msg["errorCode"] = 0;
+        msg["note"] = "Sent guess-bot-resp when the voting is not open!";
+        return msg;
+    }
+
+    std::string nicknameGuess = data.value<std::string>("chatbotNickname", "");
+    if (nicknameGuess.length() == 0)
+    {
+        json msg;
+        msg["msgType"] = static_cast<int32_t>(MsgType::ERROR);
+        msg["errorCode"] = 0;
+        msg["note"] = "Sent guess-bot-resp with not chatbotNickname field!";
+        return msg;
+    }
+
+    if (nicknameGuess == self->m_currentBotNickname)
+    {
+        int32_t clientId = data.value<int32_t>("clientId", -1);
+
+        std::lock_guard lg{self->m_mutex};
+        self->m_clientScores[clientId]++;
+    }
 
     return json{};
 }

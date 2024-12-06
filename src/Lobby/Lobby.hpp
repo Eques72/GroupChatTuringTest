@@ -11,22 +11,12 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <atomic>
 #include "App.h"
 #include "json.hpp"
 #include "MsgTypeEnum.hpp"
 #include "ServerLogic.hpp"
 
-// TODO Rewrite the class.
-// Each Lobby (or rename LobbyThread) should be able to be run using a runThreaded() member function
-// And there should be a functionalities so that the main thread can pass on the message / json data
-//      to the LobbyThread and the thread handles the message
-
-int32_t constexpr MAX_MSGS_QUEUE_LEN = 100;
-int64_t constexpr READY_STATE_CLIENT_WAIT_SECODS = 10;
-int64_t constexpr ROUND_LENGHT_SECONDS = 10;
-// TODO Path to the file with topics
-// std::filesystem::path const DEFAULT_TOPIC_FILE = "/home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/bin/topics.txt";
-std::filesystem::path const DEFAULT_TOPIC_FILE = "topics.txt";
 
 class Lobby
 {
@@ -51,6 +41,16 @@ public:
 
 private:
 
+    enum class LobbyState
+    {
+        IN_LOBBY,
+        GAME_STARTING,
+        NEW_ROUND,
+        PLAYING,
+        VOTING,
+        ROUND_ENDED,
+    };
+
     bool              m_isRunning;
     int32_t     const m_id;
     uWS::App &        m_server;
@@ -58,17 +58,22 @@ private:
     std::string const m_creatorUsername;
     int32_t     const m_maxUsers;
     int32_t     const m_roundsNumber;
-    bool              m_inLobby;
-    bool              m_startGame;
-    bool              m_startNewRound;
-    bool              m_acceptsNewUsers;
-    std::chrono::time_point<std::chrono::system_clock> m_newRoundStartTimepoint;
+    std::atomic<LobbyState> m_state;
+    std::chrono::time_point<std::chrono::system_clock> m_lastStateTimepoint;
     std::chrono::time_point<std::chrono::system_clock> m_msgWaitTimeout;
+    // TODO Delete when not needed
+    // bool              m_inLobby;
+    // bool              m_startGame;
+    // bool              m_startNewRound;
+    // bool              m_startVoting;
+    // std::chrono::time_point<std::chrono::system_clock> m_newRoundStartTimepoint;
 
+    std::string                  m_currentBotNickname;
     std::mutex                   m_mutex;
     std::vector<int32_t>         m_clientsIds;
+    std::unordered_map<int32_t, int32_t> m_clientScores;
     std::queue<nlohmann::json>   m_msgs;
-    std::counting_semaphore<MAX_MSGS_QUEUE_LEN> m_msgsSmph;
+    std::counting_semaphore<100/*Max len?*/> m_msgsSmph;
 
     std::jthread m_thread;
 
@@ -81,6 +86,7 @@ private:
     void user_joined_notify(Lobby * self, int32_t newUserId);
     auto post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     auto start_game_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
+    auto guess_bot_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     // TODO Add message handlers for each message that can be passed to the lobby
 
     static auto read_topic_from_file(std::filesystem::path const & path) -> std::string;

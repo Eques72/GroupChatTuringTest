@@ -65,8 +65,8 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
         } break;
 
         case MsgType::UNDEFINED: 
-        case MsgType::CLIENT_REGISTRATION_RESP:
-        case MsgType::USER_JOINED:
+        // case MsgType::CLIENT_REGISTRATION_RESP:
+        // case MsgType::USER_JOINED:
         default:
         { // Server should NOT receive messages with those values
             respData["msgType"] = static_cast<int32_t>(MsgType::ERROR);
@@ -87,6 +87,7 @@ void ServerLogic::message_handler(uWS::WebSocket<false, true, PerSocketData> * w
         case MsgType::JOIN_LOBBY_REQ:
         case MsgType::POST_NEW_CHAT:
         case MsgType::START_GAME:
+        case MsgType::GUESS_BOT_RESP:
         {
             respData = pass_msg_to_lobby_handler(std::move(data), ws);
         } break;
