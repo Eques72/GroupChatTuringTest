@@ -1,6 +1,8 @@
 #pragma once
 
-/* ws->getUserData returns one of these */
+/* ws->getUserData() returns one of these */
 struct PerSocketData {
-    /* Fill with user data */
+    int32_t id;
+    std::string username;
+    int32_t lobbyId;
 };
