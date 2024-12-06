@@ -299,6 +299,7 @@ Message sent out to all clients associated with a specific lobby when a new roun
 | lobbyId | int32 | Yes |
 | topic | string | Yes |
 | roundDurationSec | int32 | Yes |
+| roundNum | int32 | Yes |
 | note | string | No |
 
 ```javascript
@@ -308,6 +309,7 @@ Message sent out to all clients associated with a specific lobby when a new roun
     "lobbyId": 183,
     "topic": "What do you like about being alive and definetly not about being a chatbot",
     "roundDurationSec": 180,
+    "roundNum": 1,
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
@@ -344,6 +346,7 @@ Callback message sent out by the server to all of the lobby's clients (original 
 | msgType | int32 | Yes |
 | lobbyId | int32 | Yes |
 | chatMsg | string | Yes |
+| senderUsername | string | Yes |
 | note | string | No |
 
 ```javascript
@@ -352,6 +355,7 @@ Callback message sent out by the server to all of the lobby's clients (original 
     "msgType": 11,
     "lobbyId": 183,
     "chatMsg": "Hi guys! This is my first ever game and my fisrt ever chat message!",
+    "senderUsername": "Jane Doe",
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```

@@ -37,10 +37,30 @@ async function main() {
     });
     socket.addEventListener('message', (event) => {
         lastRcvdMsg = JSON.parse(event.data);
-        console.log("Recevied:\n", lastRcvdMsg);
+        console.log("\nRecevied:\n", lastRcvdMsg, '\n');
 
         if (lastRcvdMsg['msgType'] == 7) {
             anotherUserJoined = true;
+        }
+
+        switch (lastRcvdMsg['msgType']) {
+            case 12: {
+                const guess = (Math.random() < 0.5) ? "chatbot" : "bad guess";
+
+                msg = {
+                    msgType: 13,
+                    clientId: myClientId,
+                    lobbyId: myLobbyId,
+                    chatbotNickname: guess
+                };
+                socket.send(JSON.stringify(msg));
+            } break;
+        
+            case 15:
+            case 18: {
+                console.log("Game ended");
+                throw "Game ended";
+            } break;
         }
     });
     socket.addEventListener('close', () => {
@@ -58,10 +78,12 @@ async function main() {
 
     await sleep(500);
 
+    const myUsername = "User" + Math.floor(Math.random() * (100));
+
     // Register
     let msg = {
         msgType: 1,
-        username: "User - User"
+        username: myUsername
     };
     socket.send(JSON.stringify(msg));
     if (logSentMsgs) {
@@ -89,26 +111,12 @@ async function main() {
         msgType: 10,
         clientId: myClientId,
         lobbyId: myLobbyId,
-        chatMsg: 'LOBBY USER sends greetings!'
+        chatMsg: myUsername + ' sends greetings!'
     };
     socket.send(JSON.stringify(msg));
     if (logSentMsgs) {
         console.log('Sent:\n', JSON.stringify(msg));
     }
-    // await sleep(500);
-
-    
-    while (lastRcvdMsg['msgType'] != 12) {
-        await sleep(100);
-    }
-
-    msg = {
-        msgType: 13,
-        clientId: myClientId,
-        lobbyId: myLobbyId,
-        chatbotNickname: 'bad guess'
-    };
-    socket.send(JSON.stringify(msg));
 }
 
 main();

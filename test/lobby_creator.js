@@ -6,6 +6,8 @@ async function main() {
     let lastRcvdMsg = {};
     let anotherUserJoined = false;
     let logSentMsgs = true;
+    let myClientId = 0;
+    let myLobbyId = 0;
 
     const socket = new WebSocket("ws://localhost:12345");
     socket.addEventListener('open', () => {
@@ -13,10 +15,28 @@ async function main() {
     });
     socket.addEventListener('message', (event) => {
         lastRcvdMsg = JSON.parse(event.data);
-        console.log("Recevied:\n", lastRcvdMsg);
+        console.log("\nRecevied:\n", lastRcvdMsg, '\n');
 
         if (lastRcvdMsg['msgType'] == 7) {
             anotherUserJoined = true;
+        }
+        
+        switch (lastRcvdMsg['msgType']) {
+            case 12: {
+                msg = {
+                    msgType: 13,
+                    clientId: myClientId,
+                    lobbyId: myLobbyId,
+                    chatbotNickname: 'chatbot'
+                };
+                socket.send(JSON.stringify(msg));
+            } break;
+        
+            case 15:
+            case 18: {
+                console.log("Game ended");
+                throw "Game ended";
+            } break;
         }
     });
     socket.addEventListener('close', () => {
@@ -37,14 +57,14 @@ async function main() {
     // Register
     let msg = {
         msgType: 1,
-        username: "User - Creator"
+        username: "Creator"
     };
     socket.send(JSON.stringify(msg));
     if (logSentMsgs) {
         console.log('Sent:\n', JSON.stringify(msg));
     }
     await sleep(500);
-    const myClientId = lastRcvdMsg['clientId'];
+    myClientId = lastRcvdMsg['clientId'];
 
     // Create a lobby
     msg = {
@@ -59,7 +79,7 @@ async function main() {
         console.log('Sent:\n', JSON.stringify(msg));
     }
     await sleep(500);
-    const myLobbyId = lastRcvdMsg['lobbyId'];
+    myLobbyId = lastRcvdMsg['lobbyId'];
 
     // Wait untill another user joins the lobby
     while (anotherUserJoined == false) {
@@ -89,19 +109,6 @@ async function main() {
     if (logSentMsgs) {
         console.log('Sent:\n', JSON.stringify(msg));
     }
-    await sleep(500);
-
-    while (lastRcvdMsg['msgType'] != 12) {
-        await sleep(100);
-    }
-
-    msg = {
-        msgType: 13,
-        clientId: myClientId,
-        lobbyId: myLobbyId,
-        chatbotNickname: 'chatbot'
-    };
-    socket.send(JSON.stringify(msg));
 }
 
 main();

@@ -236,14 +236,16 @@ void Lobby::startLobbyThread()
 
                     case LobbyState::NEW_ROUND:
                     {
+                        self->m_currentRound++;
+
                         json msg;
                         msg["msgType"] = static_cast<int32_t>(MsgType::NEW_ROUND);
                         msg["lobbyId"] = self->m_id;
                         msg["topic"] = Lobby::read_topic_from_file(DEFAULT_TOPIC_FILE);
                         msg["roundDurationSec"] = static_cast<int32_t>(ROUND_LENGTH_SECONDS);
+                        msg["roundNum"] = self->m_currentRound;
 
                         self->send_to_all_clients(msg);
-                        self->m_currentRound++;
 
                         self->m_state = LobbyState::PLAYING;
                         self->m_lastStateTimepoint = system_clock::now();
@@ -479,7 +481,7 @@ auto Lobby::post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> 
     chatMsg["msgType"] = static_cast<int32_t>(MsgType::NEW_CHAT);
     chatMsg["lobbyId"] = self->m_id;
     chatMsg["chatMsg"] = data.value<std::string>("chatMsg", "");
-    chatMsg["note"] = std::format("Message send from: {}", ServerLogic::get_username_by_client_id(data.value<int32_t>("clientId", -1)));
+    chatMsg["senderUsername"] = ServerLogic::get_username_by_client_id(data.value<int32_t>("clientId", -1));
 
     self->send_to_all_clients(chatMsg);
 
