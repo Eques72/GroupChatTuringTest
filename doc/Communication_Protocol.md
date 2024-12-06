@@ -360,6 +360,7 @@ Message sent out to all clients associated with a specific lobby when the times 
 | ---------- | ---- | -------- |
 | msgType | int32 | Yes |
 | lobbyId | int32 | Yes |
+| votingTimeSec | int32 | Yes |
 | note | string | No |
 
 ```javascript
@@ -367,6 +368,7 @@ Message sent out to all clients associated with a specific lobby when the times 
 {
     "msgType": 12,
     "lobbyId": 183,
+    "votingTimeSec": 30,
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
