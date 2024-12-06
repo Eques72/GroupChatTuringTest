@@ -56,12 +56,14 @@ void Lobby::client_disconnected(int32_t clientId)
 
     if (m_clientsIds.size() == 0)
     {
-        while (requestThreadStop() == false)
-        {
-            ;
-        }
+        // while (requestThreadStop() == false)
+        // {
+        //     ;
+        // }
 
-        m_isRunning = false;
+        // m_isRunning = false;
+
+        requestThreadStop();
 
         return;
     }
@@ -441,3 +443,6 @@ void Lobby::close_lobby()
 {
     // TODO
 }
+
+// TODO Add the "bot" user
+// TODO Add round ended / glosowanie functionalities

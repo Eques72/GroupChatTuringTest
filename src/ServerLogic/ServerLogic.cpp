@@ -114,11 +114,6 @@ void ServerLogic::connection_closed_handler(uWS::WebSocket<SSL, true, PerSocketD
     if (m_lobbies.contains(lobbyId) && m_lobbies.at(lobbyId)->isLobbyRunning())
     {
         m_lobbies.at(lobbyId)->client_disconnected(ws->getUserData()->id);
-
-        if (m_lobbies.at(lobbyId)->isLobbyRunning() == false)
-        {
-            m_lobbies.erase(lobbyId);
-        }
     }
 }
 
