@@ -47,6 +47,8 @@ The common (and absolutely required) field for each message regardless of the me
 | round-ended | 14 |
 | game-over | 15 |
 | start-game | 16 |
+| user-left | 17 |
+| lobby-shutdown | 18 |
 
 # Communication Protocol - reporting an error
 Whenever the server or the client try to act according to the received message / request type but something goes wrong (like the received data contained bad data, or insufficent data, or something similar) then they should sent the "error" message, that should implement the following schema:
@@ -420,6 +422,7 @@ Message sent out to all clients associated with a specific lobby when a round en
 
 ## "game-over" message
 Game over message. Message sent out to all clients associated with a specific lobby when that lobby's game has ended.
+> After receiving this message the client should close the websocket connection to the server!
 
 ### "game-over" schema
 | Field name | Type | Required |
@@ -432,6 +435,47 @@ Game over message. Message sent out to all clients associated with a specific lo
 // Example game-over message JSON
 {
     "msgType": 15,
+    "lobbyId": 183,
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
+
+## "user-left" message
+Message sent out to all of the lobby clients when another client (user) leaves the lobby (game)
+
+### "user-left" schema
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| lobbyId | int32 | Yes |
+| username | string | Yes |
+| note | string | No |
+
+```javascript
+// Example user-left message JSON
+{
+    "msgType": 17,
+    "lobbyId": 183,
+    "username": "Jane Doe",
+    "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
+}
+```
+
+## "lobby-shutdown" message
+Message sent out to all of the lobby clients when the lobby is forcefuly shutdown.
+> After receiving this message the client should close the websocket connection to the server!
+
+### "lobby-shutdown" schema
+| Field name | Type | Required |
+| ---------- | ---- | -------- |
+| msgType | int32 | Yes |
+| lobbyId | int32 | Yes |
+| note | string | No |
+
+```javascript
+// Example lobby-shutdown message JSON
+{
+    "msgType": 18,
     "lobbyId": 183,
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }

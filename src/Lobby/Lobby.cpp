@@ -60,7 +60,6 @@ void Lobby::client_disconnected(int32_t clientId)
         // {
         //     ;
         // }
-
         // m_isRunning = false;
 
         requestThreadStop();
@@ -70,11 +69,10 @@ void Lobby::client_disconnected(int32_t clientId)
 
     lock.unlock();
 
-    // TODO Maybe notify the users that this client left?
     json msg;
-    msg["msgType"] = static_cast<int32_t>(MsgType::NEW_CHAT);
+    msg["msgType"] = static_cast<int32_t>(MsgType::USER_LEFT);
     msg["lobbyId"] = m_id;
-    msg["chatMsg"] = std::format("User {} disconnected!", ServerLogic::get_username_by_client_id(clientId));
+    msg["username"] = ServerLogic::get_username_by_client_id(clientId);
     send_to_all_clients(msg);
 }
 
@@ -441,8 +439,9 @@ auto Lobby::read_topic_from_file(std::filesystem::path const & path) -> std::str
 
 void Lobby::close_lobby()
 {
-    // TODO
-}
+    json msg;
+    msg["msgType"] = static_cast<int32_t>(MsgType::LOBBY_SHUTDOWN);
+    msg["lobbyId"] = m_id;
 
-// TODO Add the "bot" user
-// TODO Add round ended / glosowanie functionalities
+    send_to_all_clients(msg);
+}

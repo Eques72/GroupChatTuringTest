@@ -20,4 +20,6 @@ enum MsgType
     ROUND_ENDED              = 14,
     GAME_OVER                = 15,
     START_GAME               = 16,
+    USER_LEFT                = 17,
+    LOBBY_SHUTDOWN           = 18,
 };
