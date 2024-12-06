@@ -21,6 +21,7 @@ Lobby::Lobby(uWS::App & server, uWS::Loop * p_loop, int32_t lobbyId, std::string
      m_creatorUsername{creatorUsername}, 
      m_maxUsers{maxUsers}, 
      m_roundsNumber{roundsNumber},
+     m_currentRound{0},
      m_state{LobbyState::IN_LOBBY},
     //  m_inLobby{true},
     //  m_startGame{false},
@@ -72,6 +73,8 @@ void Lobby::client_disconnected(int32_t clientId)
 
     if (m_clientsIds.size() == 0)
     {
+        // TODO Log that the last client left!
+
         // while (requestThreadStop() == false)
         // {
         //     ;
@@ -141,7 +144,7 @@ void Lobby::startLobbyThread()
                 {
                     case MsgType::ERROR:
                     {
-                        // TODO
+                        // TODO Later or ignore
                     } break;
 
                     case MsgType::CREATE_LOBBY_REQ:
@@ -240,6 +243,7 @@ void Lobby::startLobbyThread()
                         msg["roundDurationSec"] = static_cast<int32_t>(ROUND_LENGTH_SECONDS);
 
                         self->send_to_all_clients(msg);
+                        self->m_currentRound++;
 
                         self->m_state = LobbyState::PLAYING;
                         self->m_lastStateTimepoint = system_clock::now();
@@ -302,13 +306,13 @@ void Lobby::startLobbyThread()
                             break;
                         }
 
-                        // { // TODO This is temporary - for testing
-                        //     json msg;
-                        //     msg["msgType"] = static_cast<int32_t>(MsgType::NEW_CHAT);
-                        //     msg["lobbyId"] = self->m_id;
-                        //     msg["chatMsg"] = "Scoreboard hidden! New round!!";
-                        //     self->send_to_all_clients(msg);
-                        // }
+                        if (self->m_currentRound >= self->m_roundsNumber)
+                        {
+                            json msg;
+                            msg["msgType"] = static_cast<int32_t>(MsgType::GAME_OVER);
+                            msg["lobbyId"] = self->m_id;
+                            self->send_to_all_clients(msg);
+                        }
 
                         self->m_state = LobbyState::NEW_ROUND;
                         self->m_lastStateTimepoint = system_clock::now();
@@ -453,6 +457,8 @@ auto Lobby::join_lobby_req_handler(Lobby * self, nlohmann::json const & data) ->
     lock.unlock();
 
     resp["lobbyCreator"] = self->m_creatorUsername;
+    resp["maxUsers"] = self->m_maxUsers;
+    resp["roundsNumber"] = self->m_roundsNumber;
 
     return resp;
 }

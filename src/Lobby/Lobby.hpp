@@ -58,6 +58,7 @@ private:
     std::string const m_creatorUsername;
     int32_t     const m_maxUsers;
     int32_t     const m_roundsNumber;
+    int32_t           m_currentRound;
     std::atomic<LobbyState> m_state;
     std::chrono::time_point<std::chrono::system_clock> m_lastStateTimepoint;
     std::chrono::time_point<std::chrono::system_clock> m_msgWaitTimeout;

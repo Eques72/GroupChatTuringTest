@@ -201,6 +201,8 @@ If the user was added to the requested lobby, the server will respond with a mes
 | lobbyId | int32 | Yes |
 | userList | array (string) | Yes |
 | lobbyCreator | string | Yes |
+| maxUsers | int32 | Yes |
+| roundsNumber | int32 | Yes |
 | note | string | No |
 
 ```javascript
@@ -215,6 +217,8 @@ If the user was added to the requested lobby, the server will respond with a mes
         "Żaba",
     ],
     "lobbyCreator": "Jane Doe",
+    "maxUsers": 5,
+    "roundsNumber": 5,
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
