@@ -109,6 +109,19 @@ async function main() {
     if (logSentMsgs) {
         console.log('Sent:\n', JSON.stringify(msg));
     }
+
+    const intervalId = setInterval(() => {
+        msg = {
+            msgType: 10,
+            clientId: myClientId,
+            lobbyId: myLobbyId,
+            chatMsg: 'Creator sends another testing message!'
+        };
+        socket.send(JSON.stringify(msg));
+        if (logSentMsgs) {
+            console.log('Sent:\n', JSON.stringify(msg));
+        }    
+    }, 2000);
 }
 
 main();

@@ -348,6 +348,7 @@ Callback message sent out by the server to all of the lobby's clients (original 
 | chatMsg | string | Yes |
 | senderId | int32 | Yes |
 | senderUsername | string | Yes |
+| senderNickname | string | Yes |
 | note | string | No |
 
 ```javascript
@@ -358,6 +359,7 @@ Callback message sent out by the server to all of the lobby's clients (original 
     "chatMsg": "Hi guys! This is my first ever game and my fisrt ever chat message!",
     "senderId": 123,
     "senderUsername": "Jane Doe",
+    "senderUsername": "Frog",
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
