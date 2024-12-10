@@ -315,6 +315,7 @@ void Lobby::startLobbyThread()
                             msg["scoreboard"][username] = score.second;
                         }
                         lock.unlock();
+                        msg["chatbotNickname"] = self->m_currentBotNickname;
                         self->send_to_all_clients(msg);
 
                         self->m_state = LobbyState::ROUND_ENDED;

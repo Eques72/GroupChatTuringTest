@@ -423,6 +423,7 @@ Message sent out to all clients associated with a specific lobby when a round en
 | msgType | int32 | Yes |
 | lobbyId | int32 | Yes |
 | scoreboard | dict(string, int32_t) | Yes |
+| chatbotNickname | string | Yes |
 | note | string | No |
 
 ```javascript
@@ -436,6 +437,7 @@ Message sent out to all clients associated with a specific lobby when a round en
         "User1": 0,
         "Żaba": 0,
     },
+    "chatbotNickname": "chatbot",
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
