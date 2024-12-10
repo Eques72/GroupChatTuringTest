@@ -238,6 +238,8 @@ void Lobby::startLobbyThread()
                     {
                         self->m_currentRound++;
 
+                        // TODO Random nicknames generation for each client
+
                         json msg;
                         msg["msgType"] = static_cast<int32_t>(MsgType::NEW_ROUND);
                         msg["lobbyId"] = self->m_id;
@@ -481,6 +483,7 @@ auto Lobby::post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> 
     chatMsg["msgType"] = static_cast<int32_t>(MsgType::NEW_CHAT);
     chatMsg["lobbyId"] = self->m_id;
     chatMsg["chatMsg"] = data.value<std::string>("chatMsg", "");
+    chatMsg["senderId"] = data.value<int32_t>("clientId", -1);
     chatMsg["senderUsername"] = ServerLogic::get_username_by_client_id(data.value<int32_t>("clientId", -1));
 
     self->send_to_all_clients(chatMsg);
