@@ -281,6 +281,13 @@ void Lobby::startLobbyThread()
                         msg["msgType"] = static_cast<int32_t>(MsgType::GUESS_BOT_REQ);
                         msg["lobbyId"] = self->m_id;
                         msg["votingTimeSec"] = static_cast<int32_t>(VOTING_LENGTH_SECONDS - 5);
+                        msg["usersNicknames"] = json::object();
+                        std::unique_lock lock{self->m_mutex};
+                        for (std::pair<int32_t, std::string> const & clientNickname : self->m_clientNicknames)
+                        {
+                            msg["usersNicknames"][clientNickname.first/*clientId*/] = clientNickname.second/*nickname*/;
+                        }
+                        lock.unlock();
                         self->send_to_all_clients(msg);
 
                         self->m_state = LobbyState::VOTING;
