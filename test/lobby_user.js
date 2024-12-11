@@ -65,6 +65,7 @@ async function main() {
     });
     socket.addEventListener('close', () => {
         console.log('WebSocket connection closed.');
+        throw "Websocket connection closed!";
     });
     socket.addEventListener('error', (error) => {
         console.error('WebSocket error:', error);
@@ -129,7 +130,7 @@ async function main() {
         if (logSentMsgs) {
             console.log('Sent:\n', JSON.stringify(msg));
         }    
-    }, 2000);
+    }, 4000);
 }
 
 main();

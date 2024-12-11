@@ -285,7 +285,7 @@ void Lobby::startLobbyThread()
                         std::unique_lock lock{self->m_mutex};
                         for (std::pair<int32_t, std::string> const & clientNickname : self->m_clientNicknames)
                         {
-                            msg["usersNicknames"][clientNickname.first/*clientId*/] = clientNickname.second/*nickname*/;
+                            msg["usersNicknames"][std::to_string(clientNickname.first)/*clientId*/] = clientNickname.second/*nickname*/;
                         }
                         lock.unlock();
                         self->send_to_all_clients(msg);
@@ -680,13 +680,18 @@ auto Lobby::get_random_nicknames(int32_t count, std::filesystem::path const & pa
         do
         {
             randomLineNumber = std::rand() % lineCount;
+            if (randomLineNumber == 0) continue;
         } while (std::find(uniqueLineNumbers.begin(), uniqueLineNumbers.end(), randomLineNumber) != uniqueLineNumbers.end());
 
         uniqueLineNumbers.push_back(randomLineNumber);        
 
         size_t currentLine = 0;
-        while (currentLine < randomLineNumber && std::getline(file, line)) {
+        while (std::getline(file, line)) {
             currentLine++;
+            if (currentLine == randomLineNumber)
+            {
+                break;
+            }
         }
         
         nicknames.push_back(line);
