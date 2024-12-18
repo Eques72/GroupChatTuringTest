@@ -9,8 +9,10 @@ int64_t constexpr READY_STATE_CLIENT_WAIT_SECODS = 5;
 int64_t constexpr ROUND_LENGTH_SECONDS           = 5;
 int64_t constexpr VOTING_LENGTH_SECONDS          = 5;
 int64_t constexpr ROUND_ENDED_LENGTH_SECONDS     = 5;
-// std::filesystem::path const DEFAULT_TOPIC_FILE = "/home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/bin/topics.txt";
-std::filesystem::path const DEFAULT_TOPIC_FILE = "topics.txt";
+// std::filesystem::path const DEFAULT_TOPIC_FILE = "/home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/data/topics.txt";
+std::filesystem::path const DEFAULT_TOPIC_FILE = "data/topics.txt";
+// std::filesystem::path const DEFAULT_NICKNAME_FILE = "/home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/data/nickname_icon_color.csv";
+std::filesystem::path const DEFAULT_NICKNAME_FILE = "data/nickname_icon_color.csv";
 
 
 Lobby::Lobby(uWS::App & server, uWS::Loop * p_loop, int32_t lobbyId, std::string const & creatorUsername, int32_t maxUsers, int32_t roundsNumber)
@@ -40,6 +42,7 @@ Lobby::Lobby(uWS::App & server, uWS::Loop * p_loop, int32_t lobbyId, std::string
 Lobby::~Lobby()
 {
     close_lobby();
+    std::cout << "~Lobby (" << m_id << ") Is being destructed" << std::endl;
 }
 
 void Lobby::pass_msg(json && data)
@@ -238,6 +241,19 @@ void Lobby::startLobbyThread()
                     {
                         self->m_currentRound++;
 
+                        std::unique_lock lock{self->m_mutex};
+                        std::vector<std::string> nicknames = Lobby::get_random_nicknames(self->m_clientsIds.size(), DEFAULT_NICKNAME_FILE);
+                        
+                        assert(nicknames.size() == self->m_clientNicknames.size());
+
+                        int32_t i{0};
+                        for (auto & client : self->m_clientNicknames)
+                        {
+                            client.second = nicknames[i];
+                            i++;
+                        }
+                        lock.unlock();
+
                         json msg;
                         msg["msgType"] = static_cast<int32_t>(MsgType::NEW_ROUND);
                         msg["lobbyId"] = self->m_id;
@@ -265,6 +281,13 @@ void Lobby::startLobbyThread()
                         msg["msgType"] = static_cast<int32_t>(MsgType::GUESS_BOT_REQ);
                         msg["lobbyId"] = self->m_id;
                         msg["votingTimeSec"] = static_cast<int32_t>(VOTING_LENGTH_SECONDS - 5);
+                        msg["usersNicknames"] = json::object();
+                        std::unique_lock lock{self->m_mutex};
+                        for (std::pair<int32_t, std::string> const & clientNickname : self->m_clientNicknames)
+                        {
+                            msg["usersNicknames"][std::to_string(clientNickname.first)/*clientId*/] = clientNickname.second/*nickname*/;
+                        }
+                        lock.unlock();
                         self->send_to_all_clients(msg);
 
                         self->m_state = LobbyState::VOTING;
@@ -292,6 +315,7 @@ void Lobby::startLobbyThread()
                             msg["scoreboard"][username] = score.second;
                         }
                         lock.unlock();
+                        msg["chatbotNickname"] = self->m_currentBotNickname;
                         self->send_to_all_clients(msg);
 
                         self->m_state = LobbyState::ROUND_ENDED;
@@ -314,6 +338,7 @@ void Lobby::startLobbyThread()
                             msg["msgType"] = static_cast<int32_t>(MsgType::GAME_OVER);
                             msg["lobbyId"] = self->m_id;
                             self->send_to_all_clients(msg);
+                            self->requestThreadStop();
                         }
 
                         self->m_state = LobbyState::NEW_ROUND;
@@ -327,6 +352,8 @@ void Lobby::startLobbyThread()
                     } break;
                 }
             }
+
+            std::cout << "Lobby (" << self->m_id << ") Getting out of the logic loop" << std::endl;
 
             self->close_lobby();
 
@@ -353,6 +380,7 @@ void Lobby::add_client_to_lobby(int32_t clientId)
     
     m_clientsIds.push_back(clientId);
     m_clientScores.insert({clientId, 0});
+    m_clientNicknames.insert({clientId, ""});
 }
 
 auto Lobby::check_if_valid_client(int32_t clientId) -> bool
@@ -481,7 +509,9 @@ auto Lobby::post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> 
     chatMsg["msgType"] = static_cast<int32_t>(MsgType::NEW_CHAT);
     chatMsg["lobbyId"] = self->m_id;
     chatMsg["chatMsg"] = data.value<std::string>("chatMsg", "");
+    chatMsg["senderId"] = data.value<int32_t>("clientId", -1);
     chatMsg["senderUsername"] = ServerLogic::get_username_by_client_id(data.value<int32_t>("clientId", -1));
+    chatMsg["senderNickname"] = self->m_clientNicknames.at(data.value<int32_t>("clientId", -1));
 
     self->send_to_all_clients(chatMsg);
 
@@ -578,7 +608,7 @@ auto Lobby::read_topic_from_file(std::filesystem::path const & path) -> std::str
     file.clear();
     file.seekg(0);
 
-    std::srand(static_cast<unsigned>(std::time(nullptr)));
+    std::srand(static_cast<unsigned int>(std::time(nullptr)));
     size_t randomLineNumber = std::rand() % lineCount;
 
     size_t currentLine = 0;
@@ -587,6 +617,97 @@ auto Lobby::read_topic_from_file(std::filesystem::path const & path) -> std::str
     }
 
     return line;
+}
+
+auto Lobby::get_random_nicknames(int32_t count, std::filesystem::path const & path) -> std::vector<std::string>
+{
+    std::vector<std::string> nicknames;
+
+    bool fileExists = std::filesystem::is_regular_file(path);
+
+    if (fileExists == false)
+    {
+        for (int32_t i{0}; i < count; i++)
+        {
+            nicknames.emplace_back("NicknamesNotFound");
+        }
+        return nicknames;
+    }
+
+    std::ifstream file(path);
+    if (file.is_open() == false) {
+        for (int32_t i{0}; i < count; i++)
+        {
+            nicknames.emplace_back("FailedToOpenFile");
+        }
+        return nicknames;
+    }
+
+    size_t lineCount{0};
+    std::string line;
+    while (std::getline(file, line)) {
+        lineCount++;
+    }
+
+    if (lineCount == 0) 
+    {
+        for (int32_t i{0}; i < count; i++)
+        {
+            nicknames.emplace_back("NoNicknamesInFile");
+        }
+        return nicknames;
+    }
+
+    if (lineCount < count)
+    {
+        for (int32_t i{0}; i < count; i++)
+        {
+            nicknames.emplace_back("TooFewNicknamesInFile");
+        }
+        return nicknames;
+    }
+
+    file.clear();
+    file.seekg(0);
+
+    int32_t randomLineNumber{0};
+    std::vector<int32_t> uniqueLineNumbers;
+
+    std::srand(static_cast<unsigned int>(std::time(nullptr)));
+
+    for (int32_t i{0}; i < count; i++)
+    {
+        do
+        {
+            randomLineNumber = std::rand() % lineCount;
+            if (randomLineNumber == 0) continue;
+        } while (std::find(uniqueLineNumbers.begin(), uniqueLineNumbers.end(), randomLineNumber) != uniqueLineNumbers.end());
+
+        uniqueLineNumbers.push_back(randomLineNumber);        
+
+        size_t currentLine = 0;
+        while (std::getline(file, line)) {
+            currentLine++;
+            if (currentLine == randomLineNumber)
+            {
+                break;
+            }
+        }
+        
+        nicknames.push_back(line);
+
+        file.clear();
+        file.seekg(0);
+    }
+
+    for (std::string & nicknameLine : nicknames)
+    {
+        std::string::iterator firstCommaIt = std::find(nicknameLine.begin(), nicknameLine.end(), ',');
+
+        nicknameLine.erase(firstCommaIt, nicknameLine.end());
+    }
+
+    return nicknames;
 }
 
 void Lobby::close_lobby()

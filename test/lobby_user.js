@@ -65,6 +65,7 @@ async function main() {
     });
     socket.addEventListener('close', () => {
         console.log('WebSocket connection closed.');
+        throw "Websocket connection closed!";
     });
     socket.addEventListener('error', (error) => {
         console.error('WebSocket error:', error);
@@ -117,6 +118,19 @@ async function main() {
     if (logSentMsgs) {
         console.log('Sent:\n', JSON.stringify(msg));
     }
+
+    const intervalId = setInterval(() => {
+        msg = {
+            msgType: 10,
+            clientId: myClientId,
+            lobbyId: myLobbyId,
+            chatMsg: myUsername + ' sends another testing message!'
+        };
+        socket.send(JSON.stringify(msg));
+        if (logSentMsgs) {
+            console.log('Sent:\n', JSON.stringify(msg));
+        }    
+    }, 4000);
 }
 
 main();

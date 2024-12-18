@@ -73,6 +73,7 @@ private:
     std::mutex                   m_mutex;
     std::vector<int32_t>         m_clientsIds;
     std::unordered_map<int32_t, int32_t> m_clientScores;
+    std::unordered_map<int32_t, std::string> m_clientNicknames;
     std::queue<nlohmann::json>   m_msgs;
     std::counting_semaphore<100/*Max len?*/> m_msgsSmph;
 
@@ -91,6 +92,7 @@ private:
     // TODO Add message handlers for each message that can be passed to the lobby
 
     static auto read_topic_from_file(std::filesystem::path const & path) -> std::string;
+    static auto get_random_nicknames(int32_t count, std::filesystem::path const & path) -> std::vector<std::string>;
 
     void close_lobby();
 };

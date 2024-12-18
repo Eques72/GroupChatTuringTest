@@ -346,7 +346,9 @@ Callback message sent out by the server to all of the lobby's clients (original 
 | msgType | int32 | Yes |
 | lobbyId | int32 | Yes |
 | chatMsg | string | Yes |
+| senderId | int32 | Yes |
 | senderUsername | string | Yes |
+| senderNickname | string | Yes |
 | note | string | No |
 
 ```javascript
@@ -355,7 +357,9 @@ Callback message sent out by the server to all of the lobby's clients (original 
     "msgType": 11,
     "lobbyId": 183,
     "chatMsg": "Hi guys! This is my first ever game and my fisrt ever chat message!",
+    "senderId": 123,
     "senderUsername": "Jane Doe",
+    "senderUsername": "Frog",
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
@@ -369,6 +373,7 @@ Message sent out to all clients associated with a specific lobby when the times 
 | msgType | int32 | Yes |
 | lobbyId | int32 | Yes |
 | votingTimeSec | int32 | Yes |
+| usersNicknames | dict(int32, string) | Yes |
 | note | string | No |
 
 ```javascript
@@ -377,6 +382,11 @@ Message sent out to all clients associated with a specific lobby when the times 
     "msgType": 12,
     "lobbyId": 183,
     "votingTimeSec": 30,
+    "usersNicknames": {
+        "1234": "Frog",
+        "5": "Leaf",
+        ...
+    },
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
@@ -413,6 +423,7 @@ Message sent out to all clients associated with a specific lobby when a round en
 | msgType | int32 | Yes |
 | lobbyId | int32 | Yes |
 | scoreboard | dict(string, int32_t) | Yes |
+| chatbotNickname | string | Yes |
 | note | string | No |
 
 ```javascript
@@ -426,6 +437,7 @@ Message sent out to all clients associated with a specific lobby when a round en
         "User1": 0,
         "Żaba": 0,
     },
+    "chatbotNickname": "chatbot",
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```
