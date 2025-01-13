@@ -1,12 +1,14 @@
 FROM ubuntu:latest
 
+# TODO Either create a script that cheks for and creates python venv or somehow get the pip installing correctly
+
 RUN apt-get update && apt-get install -y \
     g++ \
     libz-dev \
     cmake \
     git \
     bash \
-    python3 \
+    python3 python3-pip python3-dev \
     libzmq3-dev \
     pkg-config
 
@@ -19,7 +21,7 @@ RUN git clone https://github.com/zeromq/zmqpp.git /tmp/zmqpp && \
     ldconfig && \
     rm -rf /tmp/zmqpp
 
-RUN pip install pyzmq
+RUN pip3 install pyzmq
 
 COPY . /app
 WORKDIR /app
