@@ -1,7 +1,5 @@
 FROM ubuntu:latest
 
-# TODO Either create a script that cheks for and creates python venv or somehow get the pip installing correctly
-
 RUN apt-get update && apt-get install -y \
     g++ \
     libz-dev \
