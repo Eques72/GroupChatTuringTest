@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <cstdlib>
 #include <mutex>
 #include <thread>
 #include <queue>
@@ -14,6 +15,7 @@
 #include <atomic>
 #include "App.h"
 #include "json.hpp"
+#include <zmqpp/zmqpp.hpp>
 #include "MsgTypeEnum.hpp"
 #include "ServerLogic.hpp"
 
@@ -62,12 +64,12 @@ private:
     std::atomic<LobbyState> m_state;
     std::chrono::time_point<std::chrono::system_clock> m_lastStateTimepoint;
     std::chrono::time_point<std::chrono::system_clock> m_msgWaitTimeout;
-    // TODO Delete when not needed
-    // bool              m_inLobby;
-    // bool              m_startGame;
-    // bool              m_startNewRound;
-    // bool              m_startVoting;
-    // std::chrono::time_point<std::chrono::system_clock> m_newRoundStartTimepoint;
+    std::string const m_zmqEndpoint;
+    zmqpp::context m_zmqContext;
+    zmqpp::socket_type m_zmqSocketType;
+    zmqpp::socket m_zmqSocket;
+    std::chrono::time_point<std::chrono::system_clock> m_lastChatbotMessage;
+    std::jthread m_chatbotThread;
 
     std::string                  m_currentBotNickname;
     std::mutex                   m_mutex;
@@ -86,7 +88,7 @@ private:
     auto create_lobby_req_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     auto join_lobby_req_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     void user_joined_notify(Lobby * self, int32_t newUserId);
-    auto post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
+    auto post_new_chat_handler(Lobby * self, nlohmann::json const & data, bool chatbot = false) -> nlohmann::json;
     auto start_game_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     auto guess_bot_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     // TODO Add message handlers for each message that can be passed to the lobby

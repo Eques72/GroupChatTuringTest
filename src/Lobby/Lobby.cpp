@@ -5,10 +5,11 @@ using seconds      = std::chrono::seconds;
 using time_point   = std::chrono::time_point<std::chrono::system_clock>;
 using system_clock = std::chrono::system_clock;
 
-int64_t constexpr READY_STATE_CLIENT_WAIT_SECODS = 5;
-int64_t constexpr ROUND_LENGTH_SECONDS           = 5;
-int64_t constexpr VOTING_LENGTH_SECONDS          = 5;
-int64_t constexpr ROUND_ENDED_LENGTH_SECONDS     = 5;
+int64_t constexpr READY_STATE_CLIENT_WAIT_SECONDS = 5;
+int64_t constexpr ROUND_LENGTH_SECONDS            = 5;
+int64_t constexpr VOTING_LENGTH_SECONDS           = 5;
+int64_t constexpr ROUND_ENDED_LENGTH_SECONDS      = 5;
+int64_t constexpr CHATBOT_MESSAGE_PERIOD_SECONDS  = 5;
 // std::filesystem::path const DEFAULT_TOPIC_FILE = "/home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/data/topics.txt";
 std::filesystem::path const DEFAULT_TOPIC_FILE = "data/topics.txt";
 // std::filesystem::path const DEFAULT_NICKNAME_FILE = "/home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/data/nickname_icon_color.csv";
@@ -25,18 +26,23 @@ Lobby::Lobby(uWS::App & server, uWS::Loop * p_loop, int32_t lobbyId, std::string
      m_roundsNumber{roundsNumber},
      m_currentRound{0},
      m_state{LobbyState::IN_LOBBY},
-    //  m_inLobby{true},
-    //  m_startGame{false},
-    //  m_startNewRound{false},
-    //  m_startVoting{false},
+     m_zmqEndpoint{"tcp://localhost:5555"},
+     m_zmqSocketType{zmqpp::socket_type::req},
+     m_zmqSocket{zmqpp::socket(m_zmqContext, m_zmqSocketType)},
      m_msgsSmph{0}
 {
     m_clientsIds.reserve(m_maxUsers);
 
     m_msgWaitTimeout = std::chrono::system_clock::now() + std::chrono::hours(1);
 
-    // TODO Temporary for testing
     m_currentBotNickname = "chatbot";
+
+    m_chatbotThread = std::jthread([]()
+    {
+        system("python3 ./bin/chatbot.py");
+    });
+    m_chatbotThread.detach();
+    m_lastChatbotMessage = system_clock::now();
 }
 
 Lobby::~Lobby()
@@ -51,7 +57,7 @@ void Lobby::pass_msg(json && data)
 
     if (m_msgs.size() >= static_cast<std::size_t>(m_msgsSmph.max()))
     {
-        // TODO Send back an error?
+        // Send back an error?
     }
 
     m_msgs.push(std::move(data));
@@ -76,14 +82,6 @@ void Lobby::client_disconnected(int32_t clientId)
 
     if (m_clientsIds.size() == 0)
     {
-        // TODO Log that the last client left!
-
-        // while (requestThreadStop() == false)
-        // {
-        //     ;
-        // }
-        // m_isRunning = false;
-
         requestThreadStop();
 
         return;
@@ -147,7 +145,7 @@ void Lobby::startLobbyThread()
                 {
                     case MsgType::ERROR:
                     {
-                        // TODO Later or ignore
+                        // Later or ignore
                     } break;
 
                     case MsgType::CREATE_LOBBY_REQ:
@@ -214,6 +212,24 @@ void Lobby::startLobbyThread()
                 }
 
                 timedout:
+                if (std::chrono::duration_cast<seconds>(system_clock::now() - self->m_lastChatbotMessage).count() > CHATBOT_MESSAGE_PERIOD_SECONDS)
+                {
+                    json msgData;
+                    // TODO Message from the chatbot
+                    
+                        zmqpp::message message;
+                        message << "Lobby";
+                        self->m_zmqSocket.send(message);
+                        std::string buffer;
+                        self->m_zmqSocket.receive(buffer);
+                    
+                    msgData["chatMsg"] = buffer;
+
+                    (void) self->post_new_chat_handler(self, msgData, true);
+
+                    self->m_lastChatbotMessage = system_clock::now();
+                }
+
                 switch (self->m_state)
                 {
                     case LobbyState::IN_LOBBY:
@@ -223,8 +239,8 @@ void Lobby::startLobbyThread()
 
                     case LobbyState::GAME_STARTING:
                     {
-                        // Check if the timeout (waiting for READY_STATE_CLIENT_WAIT_SECODS) happened
-                        bool clientReadyStateTimeout = std::chrono::duration_cast<seconds>(system_clock::now() - self->m_lastStateTimepoint).count() > READY_STATE_CLIENT_WAIT_SECODS;
+                        // Check if the timeout (waiting for READY_STATE_CLIENT_WAIT_SECONDS) happened
+                        bool clientReadyStateTimeout = std::chrono::duration_cast<seconds>(system_clock::now() - self->m_lastStateTimepoint).count() > READY_STATE_CLIENT_WAIT_SECONDS;
                         
                         if (clientReadyStateTimeout)
                         {
@@ -242,9 +258,10 @@ void Lobby::startLobbyThread()
                         self->m_currentRound++;
 
                         std::unique_lock lock{self->m_mutex};
-                        std::vector<std::string> nicknames = Lobby::get_random_nicknames(self->m_clientsIds.size(), DEFAULT_NICKNAME_FILE);
+                        std::vector<std::string> nicknames = Lobby::get_random_nicknames(self->m_clientsIds.size() + 1, DEFAULT_NICKNAME_FILE);
                         
-                        assert(nicknames.size() == self->m_clientNicknames.size());
+                        // assert(nicknames.size() == self->m_clientNicknames.size() + 1);
+                        assert(nicknames.size() == self->m_clientsIds.size() + 1);
 
                         int32_t i{0};
                         for (auto & client : self->m_clientNicknames)
@@ -253,6 +270,7 @@ void Lobby::startLobbyThread()
                             i++;
                         }
                         lock.unlock();
+                        self->m_currentBotNickname = nicknames[i];
 
                         json msg;
                         msg["msgType"] = static_cast<int32_t>(MsgType::NEW_ROUND);
@@ -493,7 +511,7 @@ auto Lobby::join_lobby_req_handler(Lobby * self, nlohmann::json const & data) ->
     return resp;
 }
 
-auto Lobby::post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json
+auto Lobby::post_new_chat_handler(Lobby * self, nlohmann::json const & data, bool chatbot) -> nlohmann::json
 {
     bool isMsgInvalid = data.value<std::string>("chatMsg", "").length() == 0;
     if (isMsgInvalid)
@@ -510,8 +528,16 @@ auto Lobby::post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> 
     chatMsg["lobbyId"] = self->m_id;
     chatMsg["chatMsg"] = data.value<std::string>("chatMsg", "");
     chatMsg["senderId"] = data.value<int32_t>("clientId", -1);
-    chatMsg["senderUsername"] = ServerLogic::get_username_by_client_id(data.value<int32_t>("clientId", -1));
-    chatMsg["senderNickname"] = self->m_clientNicknames.at(data.value<int32_t>("clientId", -1));
+    if (chatbot)
+    {
+        chatMsg["senderUsername"] = "chatbot";
+        chatMsg["senderNickname"] = self->m_currentBotNickname;
+    }
+    else
+    {
+        chatMsg["senderUsername"] = ServerLogic::get_username_by_client_id(data.value<int32_t>("clientId", -1));
+        chatMsg["senderNickname"] = self->m_clientNicknames.at(data.value<int32_t>("clientId", -1));
+    }
 
     self->send_to_all_clients(chatMsg);
 
@@ -528,7 +554,7 @@ auto Lobby::start_game_handler(Lobby * self, nlohmann::json const & data) -> nlo
         msg["note"] = "start-game when not in lobby!";
         return msg;
     }
-    
+
     json msg;
     msg["msgType"] = static_cast<int32_t>(MsgType::GAME_STARTED);
     msg["lobbyId"] = self->m_id;
@@ -543,7 +569,12 @@ auto Lobby::start_game_handler(Lobby * self, nlohmann::json const & data) -> nlo
     // self->m_newRoundStartTimepoint = std::chrono::system_clock::now();
     self->m_lastStateTimepoint = std::chrono::system_clock::now();
     
-    self->m_msgWaitTimeout = std::chrono::system_clock::now() + seconds(READY_STATE_CLIENT_WAIT_SECODS);
+    self->m_msgWaitTimeout = std::chrono::system_clock::now() + seconds(READY_STATE_CLIENT_WAIT_SECONDS);
+
+    std::cout << "CONNECTING!" << std::endl;
+    self->m_zmqSocket.connect(self->m_zmqEndpoint);
+    std::cout << "AFTER CONNECT!!" << std::endl;
+    self->m_lastChatbotMessage = std::chrono::system_clock::now();
 
     return json{};
 }
