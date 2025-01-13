@@ -21,7 +21,7 @@ RUN git clone https://github.com/zeromq/zmqpp.git /tmp/zmqpp && \
     ldconfig && \
     rm -rf /tmp/zmqpp
 
-RUN pip3 install pyzmq
+RUN pip3 install --no-cache-dir --break-system-packages pyzmq
 
 COPY . /app
 WORKDIR /app
