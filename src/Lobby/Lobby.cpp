@@ -230,6 +230,7 @@ void Lobby::startLobbyThread()
 
                     if (auto pos = std::find(buffer.begin(), buffer.end(), ':'); pos != buffer.end())
                     {
+                        // If the AI returns the message in a <user>: <message> format, try to cut it
                         buffer.erase(buffer.begin(), pos);
                     }
 
