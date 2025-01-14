@@ -5,11 +5,13 @@ using seconds      = std::chrono::seconds;
 using time_point   = std::chrono::time_point<std::chrono::system_clock>;
 using system_clock = std::chrono::system_clock;
 
-int64_t constexpr READY_STATE_CLIENT_WAIT_SECONDS = 5;
-int64_t constexpr ROUND_LENGTH_SECONDS            = 30;
-int64_t constexpr VOTING_LENGTH_SECONDS           = 10;
+
+int64_t constexpr TIME_BUFFER = 3;
+int64_t constexpr READY_STATE_CLIENT_WAIT_SECONDS = 2;
+int64_t constexpr ROUND_LENGTH_SECONDS            = 180;
+int64_t constexpr VOTING_LENGTH_SECONDS           = 30;
 int64_t constexpr ROUND_ENDED_LENGTH_SECONDS      = 10;
-int64_t constexpr CHATBOT_MESSAGE_PERIOD_SECONDS  = 5;
+int64_t constexpr CHATBOT_MESSAGE_PERIOD_SECONDS  = 10;
 // std::filesystem::path const DEFAULT_TOPIC_FILE = "/home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/data/topics.txt";
 std::filesystem::path const DEFAULT_TOPIC_FILE = "data/topics.txt";
 // std::filesystem::path const DEFAULT_NICKNAME_FILE = "/home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/data/nickname_icon_color.csv";
@@ -337,7 +339,7 @@ void Lobby::startLobbyThread()
                         json msg;
                         msg["msgType"] = static_cast<int32_t>(MsgType::GUESS_BOT_REQ);
                         msg["lobbyId"] = self->m_id;
-                        msg["votingTimeSec"] = static_cast<int32_t>(VOTING_LENGTH_SECONDS - 5);
+                        msg["votingTimeSec"] = static_cast<int32_t>(VOTING_LENGTH_SECONDS - TIME_BUFFER);
                         msg["usersNicknames"] = json::object();
                         std::unique_lock lock{self->m_mutex};
                         for (std::pair<int32_t, std::string> const & clientNickname : self->m_clientNicknames)
