@@ -53,23 +53,26 @@ private:
         ROUND_ENDED,
     };
 
-    bool              m_isRunning;
-    int32_t     const m_id;
-    uWS::App &        m_server;
-    uWS::Loop * const mp_serverLoop;
-    std::string const m_creatorUsername;
-    int32_t     const m_maxUsers;
-    int32_t     const m_roundsNumber;
-    int32_t           m_currentRound;
+    bool                    m_isRunning;
+    int32_t     const       m_id;
+    uWS::App &              m_server;
+    uWS::Loop * const       mp_serverLoop;
+    std::string const       m_creatorUsername;
+    int32_t     const       m_maxUsers;
+    int32_t     const       m_roundsNumber;
+    int32_t                 m_currentRound;
     std::atomic<LobbyState> m_state;
     std::chrono::time_point<std::chrono::system_clock> m_lastStateTimepoint;
     std::chrono::time_point<std::chrono::system_clock> m_msgWaitTimeout;
-    std::string const m_zmqEndpoint;
-    zmqpp::context m_zmqContext;
-    zmqpp::socket_type m_zmqSocketType;
-    zmqpp::socket m_zmqSocket;
+    std::string const       m_zmqEndpoint;
+    zmqpp::context          m_zmqContext;
+    zmqpp::socket_type      m_zmqSocketType;
+    zmqpp::socket           m_zmqSocket;
+    bool                    m_isSocketConnected;
     std::chrono::time_point<std::chrono::system_clock> m_lastChatbotMessage;
-    std::jthread m_chatbotThread;
+    std::jthread            m_chatbotThread;
+    std::string             m_chatLogs; 
+    std::string             m_currentTopic;
 
     std::string                  m_currentBotNickname;
     std::mutex                   m_mutex;

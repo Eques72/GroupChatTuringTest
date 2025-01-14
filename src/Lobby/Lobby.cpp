@@ -6,9 +6,9 @@ using time_point   = std::chrono::time_point<std::chrono::system_clock>;
 using system_clock = std::chrono::system_clock;
 
 int64_t constexpr READY_STATE_CLIENT_WAIT_SECONDS = 5;
-int64_t constexpr ROUND_LENGTH_SECONDS            = 5;
-int64_t constexpr VOTING_LENGTH_SECONDS           = 5;
-int64_t constexpr ROUND_ENDED_LENGTH_SECONDS      = 5;
+int64_t constexpr ROUND_LENGTH_SECONDS            = 30;
+int64_t constexpr VOTING_LENGTH_SECONDS           = 10;
+int64_t constexpr ROUND_ENDED_LENGTH_SECONDS      = 10;
 int64_t constexpr CHATBOT_MESSAGE_PERIOD_SECONDS  = 5;
 // std::filesystem::path const DEFAULT_TOPIC_FILE = "/home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/data/topics.txt";
 std::filesystem::path const DEFAULT_TOPIC_FILE = "data/topics.txt";
@@ -29,6 +29,7 @@ Lobby::Lobby(uWS::App & server, uWS::Loop * p_loop, int32_t lobbyId, std::string
      m_zmqEndpoint{"tcp://localhost:5555"},
      m_zmqSocketType{zmqpp::socket_type::req},
      m_zmqSocket{zmqpp::socket(m_zmqContext, m_zmqSocketType)},
+     m_isSocketConnected{false},
      m_msgsSmph{0}
 {
     m_clientsIds.reserve(m_maxUsers);
@@ -40,6 +41,7 @@ Lobby::Lobby(uWS::App & server, uWS::Loop * p_loop, int32_t lobbyId, std::string
     m_chatbotThread = std::jthread([]()
     {
         system("python3 ./bin/chatbot.py");
+        // system("/home/fae/.local/python-venv/bin/python /home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/bin/chatbot.py");
     });
     m_chatbotThread.detach();
     m_lastChatbotMessage = system_clock::now();
@@ -212,17 +214,30 @@ void Lobby::startLobbyThread()
                 }
 
                 timedout:
-                if (std::chrono::duration_cast<seconds>(system_clock::now() - self->m_lastChatbotMessage).count() > CHATBOT_MESSAGE_PERIOD_SECONDS)
+                if (std::chrono::duration_cast<seconds>(system_clock::now() - self->m_lastChatbotMessage).count() > CHATBOT_MESSAGE_PERIOD_SECONDS
+                    && self->m_isSocketConnected
+                    && self->m_state != LobbyState::IN_LOBBY
+                    && self->m_state != LobbyState::GAME_STARTING)
                 {
+                    zmqpp::message message;
+                    message << self->m_chatLogs;
+                    self->m_zmqSocket.send(message);
+                    self->m_chatLogs.clear();
+                    std::string buffer;
+                    self->m_zmqSocket.receive(buffer);
+
+                    if (auto pos = std::find(buffer.begin(), buffer.end(), ':'); pos != buffer.end())
+                    {
+                        buffer.erase(buffer.begin(), pos);
+                    }
+
+                    if (buffer[buffer.length() - 1] == 'n' && buffer[buffer.length() - 2] == '\\')
+                    {
+                        buffer.pop_back();
+                        buffer.pop_back();
+                    }
+
                     json msgData;
-                    // TODO Message from the chatbot
-                    
-                        zmqpp::message message;
-                        message << "Lobby";
-                        self->m_zmqSocket.send(message);
-                        std::string buffer;
-                        self->m_zmqSocket.receive(buffer);
-                    
                     msgData["chatMsg"] = buffer;
 
                     (void) self->post_new_chat_handler(self, msgData, true);
@@ -255,12 +270,13 @@ void Lobby::startLobbyThread()
 
                     case LobbyState::NEW_ROUND:
                     {
+                        self->m_chatLogs.clear();
+                        
                         self->m_currentRound++;
 
                         std::unique_lock lock{self->m_mutex};
                         std::vector<std::string> nicknames = Lobby::get_random_nicknames(self->m_clientsIds.size() + 1, DEFAULT_NICKNAME_FILE);
                         
-                        // assert(nicknames.size() == self->m_clientNicknames.size() + 1);
                         assert(nicknames.size() == self->m_clientsIds.size() + 1);
 
                         int32_t i{0};
@@ -271,6 +287,29 @@ void Lobby::startLobbyThread()
                         }
                         lock.unlock();
                         self->m_currentBotNickname = nicknames[i];
+
+                        self->m_currentTopic = Lobby::read_topic_from_file(DEFAULT_TOPIC_FILE);
+
+                        {
+                            std::string nicknamesAuxStr;
+                            for (std::string const & str : nicknames)
+                            {
+                                nicknamesAuxStr += str + ", ";
+                            }
+                            nicknamesAuxStr.pop_back(); // Remove ' '
+                            nicknamesAuxStr.pop_back(); // Remove ','
+                            nicknamesAuxStr += ",NEW";  // Identifier
+                            zmqpp::message message;
+                            message << nicknamesAuxStr;
+                            self->m_zmqSocket.send(message);
+                            std::string fuckThisLibrary;
+                            self->m_zmqSocket.receive(fuckThisLibrary);
+
+                            zmqpp::message asd;
+                            asd << self->m_currentTopic;
+                            self->m_zmqSocket.send(asd);
+                            self->m_zmqSocket.receive(fuckThisLibrary);
+                        }
 
                         json msg;
                         msg["msgType"] = static_cast<int32_t>(MsgType::NEW_ROUND);
@@ -372,6 +411,10 @@ void Lobby::startLobbyThread()
             }
 
             std::cout << "Lobby (" << self->m_id << ") Getting out of the logic loop" << std::endl;
+
+            zmqpp::message message;
+            message << ";;;;;;;;";
+            self->m_zmqSocket.send(message);
 
             self->close_lobby();
 
@@ -537,6 +580,11 @@ auto Lobby::post_new_chat_handler(Lobby * self, nlohmann::json const & data, boo
     {
         chatMsg["senderUsername"] = ServerLogic::get_username_by_client_id(data.value<int32_t>("clientId", -1));
         chatMsg["senderNickname"] = self->m_clientNicknames.at(data.value<int32_t>("clientId", -1));
+
+        self->m_chatLogs += self->m_clientNicknames.at(data.value<int32_t>("clientId", -1)) 
+                            + ": " 
+                            + data.value<std::string>("chatMsg", "") 
+                            + '\n';
     }
 
     self->send_to_all_clients(chatMsg);
@@ -562,18 +610,12 @@ auto Lobby::start_game_handler(Lobby * self, nlohmann::json const & data) -> nlo
     self->send_to_all_clients(msg);
 
     self->m_state = LobbyState::GAME_STARTING;
-    // self->m_inLobby = false;
-    // self->m_startGame = true;
-    // self->m_startNewRound = false;
-    
-    // self->m_newRoundStartTimepoint = std::chrono::system_clock::now();
     self->m_lastStateTimepoint = std::chrono::system_clock::now();
     
     self->m_msgWaitTimeout = std::chrono::system_clock::now() + seconds(READY_STATE_CLIENT_WAIT_SECONDS);
 
-    std::cout << "CONNECTING!" << std::endl;
     self->m_zmqSocket.connect(self->m_zmqEndpoint);
-    std::cout << "AFTER CONNECT!!" << std::endl;
+    m_isSocketConnected = true;
     self->m_lastChatbotMessage = std::chrono::system_clock::now();
 
     return json{};
