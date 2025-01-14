@@ -1,8 +1,9 @@
-bin/**
-build/**
 .vscode/**
 
-.env
-!.env_template
+bin/**
+!bin/chatbot.py
+!bin/.env_template
+
+build/**
 
 !*/.gitkeep
