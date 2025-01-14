@@ -233,9 +233,8 @@ void Lobby::startLobbyThread()
                         buffer.erase(buffer.begin(), pos);
                     }
 
-                    if (buffer[buffer.length() - 1] == 'n' && buffer[buffer.length() - 2] == '\\')
+                    if (buffer[buffer.length() - 1] == '\n')
                     {
-                        buffer.pop_back();
                         buffer.pop_back();
                     }
 
