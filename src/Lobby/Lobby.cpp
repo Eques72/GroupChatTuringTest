@@ -345,6 +345,7 @@ void Lobby::startLobbyThread()
                         {
                             msg["usersNicknames"][std::to_string(clientNickname.first)/*clientId*/] = clientNickname.second/*nickname*/;
                         }
+                        msg["usersNicknames"]["-1"] = self->m_currentBotNickname;
                         lock.unlock();
                         self->send_to_all_clients(msg);
 
