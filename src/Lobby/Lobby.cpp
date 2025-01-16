@@ -8,8 +8,8 @@ using system_clock = std::chrono::system_clock;
 
 int64_t constexpr TIME_BUFFER = 3;
 int64_t constexpr READY_STATE_CLIENT_WAIT_SECONDS = 2;
-int64_t constexpr ROUND_LENGTH_SECONDS            = 180;
-int64_t constexpr VOTING_LENGTH_SECONDS           = 30;
+int64_t constexpr ROUND_LENGTH_SECONDS            = 60;
+int64_t constexpr VOTING_LENGTH_SECONDS           = 15;
 int64_t constexpr ROUND_ENDED_LENGTH_SECONDS      = 10;
 int64_t constexpr CHATBOT_MESSAGE_PERIOD_SECONDS  = 10;
 // std::filesystem::path const DEFAULT_TOPIC_FILE = "/home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/data/topics.txt";
@@ -218,11 +218,17 @@ void Lobby::startLobbyThread()
                 timedout:
                 if (std::chrono::duration_cast<seconds>(system_clock::now() - self->m_lastChatbotMessage).count() > CHATBOT_MESSAGE_PERIOD_SECONDS
                     && self->m_isSocketConnected
-                    && self->m_state != LobbyState::IN_LOBBY
-                    && self->m_state != LobbyState::GAME_STARTING)
+                    && self->m_state == LobbyState::PLAYING)
                 {
                     zmqpp::message message;
-                    message << self->m_chatLogs;
+                    if (self->m_chatLogs.empty())
+                    {
+                        message << "...";
+                    }
+                    else
+                    {
+                        message << self->m_chatLogs;
+                    }
                     self->m_zmqSocket.send(message);
                     self->m_chatLogs.clear();
                     std::string buffer;
