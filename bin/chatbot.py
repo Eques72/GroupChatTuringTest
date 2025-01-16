@@ -2,12 +2,16 @@ import zmq
 import google.generativeai as genai
 from dotenv import load_dotenv
 import os
+import sys
+
+if len(sys.argv) != 2:
+    exit(0)
 
 load_dotenv()
 
 context = zmq.Context()
 socket = context.socket(zmq.REP)
-socket.bind("tcp://*:5555")
+socket.bind("tcp://*:" + sys.argv[1])
 
 apiKey = os.getenv("API_KEY")
 

@@ -64,7 +64,7 @@ private:
     std::atomic<LobbyState> m_state;
     std::chrono::time_point<std::chrono::system_clock> m_lastStateTimepoint;
     std::chrono::time_point<std::chrono::system_clock> m_msgWaitTimeout;
-    std::string const       m_zmqEndpoint;
+    std::string             m_zmqEndpoint;
     zmqpp::context          m_zmqContext;
     zmqpp::socket_type      m_zmqSocketType;
     zmqpp::socket           m_zmqSocket;

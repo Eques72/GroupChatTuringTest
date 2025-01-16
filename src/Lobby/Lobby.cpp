@@ -12,9 +12,7 @@ int64_t constexpr ROUND_LENGTH_SECONDS            = 60;
 int64_t constexpr VOTING_LENGTH_SECONDS           = 15;
 int64_t constexpr ROUND_ENDED_LENGTH_SECONDS      = 10;
 int64_t constexpr CHATBOT_MESSAGE_PERIOD_SECONDS  = 10;
-// std::filesystem::path const DEFAULT_TOPIC_FILE = "/home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/data/topics.txt";
 std::filesystem::path const DEFAULT_TOPIC_FILE = "data/topics.txt";
-// std::filesystem::path const DEFAULT_NICKNAME_FILE = "/home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/data/nickname_icon_color.csv";
 std::filesystem::path const DEFAULT_NICKNAME_FILE = "data/nickname_icon_color.csv";
 
 
@@ -28,7 +26,6 @@ Lobby::Lobby(uWS::App & server, uWS::Loop * p_loop, int32_t lobbyId, std::string
      m_roundsNumber{roundsNumber},
      m_currentRound{0},
      m_state{LobbyState::IN_LOBBY},
-     m_zmqEndpoint{"tcp://localhost:5555"},
      m_zmqSocketType{zmqpp::socket_type::req},
      m_zmqSocket{zmqpp::socket(m_zmqContext, m_zmqSocketType)},
      m_isSocketConnected{false},
@@ -36,15 +33,27 @@ Lobby::Lobby(uWS::App & server, uWS::Loop * p_loop, int32_t lobbyId, std::string
 {
     m_clientsIds.reserve(m_maxUsers);
 
-    m_msgWaitTimeout = std::chrono::system_clock::now() + std::chrono::hours(1);
-
+    // Placeholder / inits
+    m_msgWaitTimeout = std::chrono::system_clock::now() + std::chrono::hours(1); 
     m_currentBotNickname = "chatbot";
 
-    m_chatbotThread = std::jthread([]()
+    // Generate the port number
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    static std::uniform_int_distribution<int32_t> dis(49153, 65535);
+
+    std::string port = std::to_string(dis(gen));
+    // TODO Is there a way to check if any given port is free?
+    
+    m_zmqEndpoint = "tcp://localhost:" + port;
+
+    // Start the chatbot helper script
+    m_chatbotThread = std::jthread([](std::string port)
     {
-        system("python3 ./bin/chatbot.py");
-        // system("/home/fae/.local/python-venv/bin/python /home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/bin/chatbot.py");
-    });
+        std::string command{"python3 ./bin/chatbot.py " + port};
+
+        system(command.c_str());
+    }, port);
     m_chatbotThread.detach();
     m_lastChatbotMessage = system_clock::now();
 }
