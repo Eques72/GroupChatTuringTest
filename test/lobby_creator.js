@@ -73,7 +73,7 @@ async function main() {
         clientId: myClientId,
         username: lastRcvdMsg['username'],
         maxUsers: 5,
-        roundsNumber: 5,
+        roundsNumber: 2,
     };
     socket.send(JSON.stringify(msg));
     if (logSentMsgs) {

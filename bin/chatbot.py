@@ -57,7 +57,7 @@ while True:
         message = socket.recv()
         topic = message.decode("utf-8")
 
-        print(msgAux + players + " and your nickname is: " + chatbotUsername + ". The topic for discussion is: " + topic)
+        # print(msgAux + players + " and your nickname is: " + chatbotUsername + ". The topic for discussion is: " + topic)
 
         chat = model.start_chat(
             history=[
