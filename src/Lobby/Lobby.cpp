@@ -251,6 +251,10 @@ void Lobby::startLobbyThread()
                     (void) self->post_new_chat_handler(self, msgData, true);
 
                     self->m_lastChatbotMessage = system_clock::now();
+                    if (self->m_msgWaitTimeout > (system_clock::now() + seconds(CHATBOT_MESSAGE_PERIOD_SECONDS)))
+                    {
+                        self->m_msgWaitTimeout = system_clock::now() + seconds(CHATBOT_MESSAGE_PERIOD_SECONDS);
+                    }
                 }
 
                 switch (self->m_state)
@@ -331,6 +335,10 @@ void Lobby::startLobbyThread()
                         self->m_state = LobbyState::PLAYING;
                         self->m_lastStateTimepoint = system_clock::now();
                         self->m_msgWaitTimeout = self->m_lastStateTimepoint + seconds(ROUND_LENGTH_SECONDS);
+                        if (self->m_msgWaitTimeout > (system_clock::now() + seconds(CHATBOT_MESSAGE_PERIOD_SECONDS)))
+                        {
+                            self->m_msgWaitTimeout = system_clock::now() + seconds(CHATBOT_MESSAGE_PERIOD_SECONDS);
+                        }
                     } break;
 
                     case LobbyState::PLAYING:
