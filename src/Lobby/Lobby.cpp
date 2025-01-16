@@ -13,7 +13,7 @@ int64_t constexpr VOTING_LENGTH_SECONDS           = 15;
 int64_t constexpr ROUND_ENDED_LENGTH_SECONDS      = 10;
 int64_t constexpr CHATBOT_MESSAGE_PERIOD_SECONDS  = 10;
 std::filesystem::path const DEFAULT_TOPIC_FILE = "data/topics.txt";
-std::filesystem::path const DEFAULT_NICKNAME_FILE = "data/nickname_icon_color.csv";
+std::filesystem::path const DEFAULT_NICKNAME_FILE = "data/nickname_color.csv";
 
 
 Lobby::Lobby(uWS::App & server, uWS::Loop * p_loop, int32_t lobbyId, std::string const & creatorUsername, int32_t maxUsers, int32_t roundsNumber)
@@ -296,26 +296,26 @@ void Lobby::startLobbyThread()
                         self->m_currentRound++;
 
                         std::unique_lock lock{self->m_mutex};
-                        std::vector<std::string> nicknames = Lobby::get_random_nicknames(self->m_clientsIds.size() + 1, DEFAULT_NICKNAME_FILE);
+                        std::vector<std::pair<std::string, std::string>> nicknameColors = Lobby::get_random_nicknames(self->m_clientsIds.size() + 1, DEFAULT_NICKNAME_FILE);
                         
-                        assert(nicknames.size() == self->m_clientsIds.size() + 1);
+                        assert(nicknameColors.size() == self->m_clientsIds.size() + 1);
 
                         int32_t i{0};
                         for (auto & client : self->m_clientNicknames)
                         {
-                            client.second = nicknames[i];
+                            client.second = nicknameColors[i].first;
                             i++;
                         }
                         lock.unlock();
-                        self->m_currentBotNickname = nicknames[i];
+                        self->m_currentBotNickname = nicknameColors[i].first;
 
                         self->m_currentTopic = Lobby::read_topic_from_file(DEFAULT_TOPIC_FILE);
 
                         {
                             std::string nicknamesAuxStr;
-                            for (std::string const & str : nicknames)
+                            for (auto const & p : nicknameColors)
                             {
-                                nicknamesAuxStr += str + ", ";
+                                nicknamesAuxStr += p.first + ", ";
                             }
                             nicknamesAuxStr.pop_back(); // Remove ' '
                             nicknamesAuxStr.pop_back(); // Remove ','
@@ -338,6 +338,12 @@ void Lobby::startLobbyThread()
                         msg["topic"] = Lobby::read_topic_from_file(DEFAULT_TOPIC_FILE);
                         msg["roundDurationSec"] = static_cast<int32_t>(ROUND_LENGTH_SECONDS);
                         msg["roundNum"] = self->m_currentRound;
+
+                        msg["nicknameColors"] = json::object();
+                        for (std::pair<std::string, std::string> const & nc : nicknameColors)
+                        {
+                            msg["nicknameColors"][nc.first] = nc.second;
+                        }
 
                         self->send_to_all_clients(msg);
 
@@ -730,9 +736,10 @@ auto Lobby::read_topic_from_file(std::filesystem::path const & path) -> std::str
     return line;
 }
 
-auto Lobby::get_random_nicknames(int32_t count, std::filesystem::path const & path) -> std::vector<std::string>
+auto Lobby::get_random_nicknames(int32_t count, std::filesystem::path const & path) -> std::vector<std::pair<std::string, std::string>>
 {
     std::vector<std::string> nicknames;
+    std::vector<std::pair<std::string, std::string>> nicknameColor;
 
     bool fileExists = std::filesystem::is_regular_file(path);
 
@@ -740,18 +747,18 @@ auto Lobby::get_random_nicknames(int32_t count, std::filesystem::path const & pa
     {
         for (int32_t i{0}; i < count; i++)
         {
-            nicknames.emplace_back("NicknamesNotFound");
+            nicknameColor.emplace_back(std::pair<std::string, std::string>{"NicknamesNotFound", "#000000"});
         }
-        return nicknames;
+        return nicknameColor;
     }
 
     std::ifstream file(path);
     if (file.is_open() == false) {
         for (int32_t i{0}; i < count; i++)
         {
-            nicknames.emplace_back("FailedToOpenFile");
+            nicknameColor.emplace_back(std::pair<std::string, std::string>{"FailedToOpenFile", "#000000"});
         }
-        return nicknames;
+        return nicknameColor;
     }
 
     size_t lineCount{0};
@@ -764,18 +771,18 @@ auto Lobby::get_random_nicknames(int32_t count, std::filesystem::path const & pa
     {
         for (int32_t i{0}; i < count; i++)
         {
-            nicknames.emplace_back("NoNicknamesInFile");
+            nicknameColor.emplace_back(std::pair<std::string, std::string>{"NoNicknamesInFile", "#000000"});
         }
-        return nicknames;
+        return nicknameColor;
     }
 
     if (lineCount < count)
     {
         for (int32_t i{0}; i < count; i++)
         {
-            nicknames.emplace_back("TooFewNicknamesInFile");
+            nicknameColor.emplace_back(std::pair<std::string, std::string>{"TooFewNicknamesInFile", "#000000"});
         }
-        return nicknames;
+        return nicknameColor;
     }
 
     file.clear();
@@ -813,12 +820,12 @@ auto Lobby::get_random_nicknames(int32_t count, std::filesystem::path const & pa
 
     for (std::string & nicknameLine : nicknames)
     {
-        std::string::iterator firstCommaIt = std::find(nicknameLine.begin(), nicknameLine.end(), ',');
+        std::size_t commaPos = nicknameLine.find(',');
 
-        nicknameLine.erase(firstCommaIt, nicknameLine.end());
+        nicknameColor.emplace_back(std::pair<std::string, std::string>{nicknameLine.substr(0, commaPos), nicknameLine.substr(commaPos + 1)});
     }
 
-    return nicknames;
+    return nicknameColor;
 }
 
 void Lobby::close_lobby()

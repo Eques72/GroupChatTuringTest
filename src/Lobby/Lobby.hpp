@@ -97,7 +97,7 @@ private:
     // TODO Add message handlers for each message that can be passed to the lobby
 
     static auto read_topic_from_file(std::filesystem::path const & path) -> std::string;
-    static auto get_random_nicknames(int32_t count, std::filesystem::path const & path) -> std::vector<std::string>;
+    static auto get_random_nicknames(int32_t count, std::filesystem::path const & path) -> std::vector<std::pair<std::string, std::string>>;
 
     void close_lobby();
 };
