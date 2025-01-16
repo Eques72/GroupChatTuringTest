@@ -347,6 +347,18 @@ void Lobby::startLobbyThread()
 
                         if (startVote == false)
                         {
+                            int64_t secondsUntillNextState      = ROUND_ENDED_LENGTH_SECONDS - std::chrono::duration_cast<seconds>(system_clock::now() - self->m_lastStateTimepoint).count();
+                            int64_t secondsUntillNextChatbotMsg = CHATBOT_MESSAGE_PERIOD_SECONDS - std::chrono::duration_cast<seconds>(system_clock::now() - self->m_lastChatbotMessage).count();
+
+                            if (secondsUntillNextState > secondsUntillNextChatbotMsg)
+                            {
+                                self->m_msgWaitTimeout = system_clock::now() + seconds(secondsUntillNextChatbotMsg);
+                            }
+                            else
+                            {
+                                self->m_msgWaitTimeout = system_clock::now() + seconds(secondsUntillNextState);
+                            }
+
                             break;
                         }
 
