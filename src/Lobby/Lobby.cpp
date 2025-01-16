@@ -304,13 +304,13 @@ void Lobby::startLobbyThread()
                             zmqpp::message message;
                             message << nicknamesAuxStr;
                             self->m_zmqSocket.send(message);
-                            std::string fuckThisLibrary;
-                            self->m_zmqSocket.receive(fuckThisLibrary);
+                            std::string doNotDelete;
+                            self->m_zmqSocket.receive(doNotDelete);
 
                             zmqpp::message asd;
                             asd << self->m_currentTopic;
                             self->m_zmqSocket.send(asd);
-                            self->m_zmqSocket.receive(fuckThisLibrary);
+                            self->m_zmqSocket.receive(doNotDelete);
                         }
 
                         json msg;
