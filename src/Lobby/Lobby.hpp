@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <cstdlib>
 #include <mutex>
 #include <thread>
 #include <queue>
@@ -14,6 +15,7 @@
 #include <atomic>
 #include "App.h"
 #include "json.hpp"
+#include <zmqpp/zmqpp.hpp>
 #include "MsgTypeEnum.hpp"
 #include "ServerLogic.hpp"
 
@@ -51,23 +53,26 @@ private:
         ROUND_ENDED,
     };
 
-    bool              m_isRunning;
-    int32_t     const m_id;
-    uWS::App &        m_server;
-    uWS::Loop * const mp_serverLoop;
-    std::string const m_creatorUsername;
-    int32_t     const m_maxUsers;
-    int32_t     const m_roundsNumber;
-    int32_t           m_currentRound;
+    bool                    m_isRunning;
+    int32_t     const       m_id;
+    uWS::App &              m_server;
+    uWS::Loop * const       mp_serverLoop;
+    std::string const       m_creatorUsername;
+    int32_t     const       m_maxUsers;
+    int32_t     const       m_roundsNumber;
+    int32_t                 m_currentRound;
     std::atomic<LobbyState> m_state;
     std::chrono::time_point<std::chrono::system_clock> m_lastStateTimepoint;
     std::chrono::time_point<std::chrono::system_clock> m_msgWaitTimeout;
-    // TODO Delete when not needed
-    // bool              m_inLobby;
-    // bool              m_startGame;
-    // bool              m_startNewRound;
-    // bool              m_startVoting;
-    // std::chrono::time_point<std::chrono::system_clock> m_newRoundStartTimepoint;
+    std::string             m_zmqEndpoint;
+    zmqpp::context          m_zmqContext;
+    zmqpp::socket_type      m_zmqSocketType;
+    zmqpp::socket           m_zmqSocket;
+    bool                    m_isSocketConnected;
+    std::chrono::time_point<std::chrono::system_clock> m_lastChatbotMessage;
+    std::jthread            m_chatbotThread;
+    std::string             m_chatLogs; 
+    std::string             m_currentTopic;
 
     std::string                  m_currentBotNickname;
     std::mutex                   m_mutex;
@@ -86,13 +91,13 @@ private:
     auto create_lobby_req_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     auto join_lobby_req_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     void user_joined_notify(Lobby * self, int32_t newUserId);
-    auto post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
+    auto post_new_chat_handler(Lobby * self, nlohmann::json const & data, bool chatbot = false) -> nlohmann::json;
     auto start_game_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     auto guess_bot_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json;
     // TODO Add message handlers for each message that can be passed to the lobby
 
     static auto read_topic_from_file(std::filesystem::path const & path) -> std::string;
-    static auto get_random_nicknames(int32_t count, std::filesystem::path const & path) -> std::vector<std::string>;
+    static auto get_random_nicknames(int32_t count, std::filesystem::path const & path) -> std::vector<std::pair<std::string, std::string>>;
 
     void close_lobby();
 };

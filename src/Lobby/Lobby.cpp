@@ -5,14 +5,15 @@ using seconds      = std::chrono::seconds;
 using time_point   = std::chrono::time_point<std::chrono::system_clock>;
 using system_clock = std::chrono::system_clock;
 
-int64_t constexpr READY_STATE_CLIENT_WAIT_SECODS = 5;
-int64_t constexpr ROUND_LENGTH_SECONDS           = 5;
-int64_t constexpr VOTING_LENGTH_SECONDS          = 5;
-int64_t constexpr ROUND_ENDED_LENGTH_SECONDS     = 5;
-// std::filesystem::path const DEFAULT_TOPIC_FILE = "/home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/data/topics.txt";
+
+int64_t constexpr TIME_BUFFER = 3;
+int64_t constexpr READY_STATE_CLIENT_WAIT_SECONDS = 2;
+int64_t constexpr ROUND_LENGTH_SECONDS            = 60;
+int64_t constexpr VOTING_LENGTH_SECONDS           = 15;
+int64_t constexpr ROUND_ENDED_LENGTH_SECONDS      = 10;
+int64_t constexpr CHATBOT_MESSAGE_PERIOD_SECONDS  = 10;
 std::filesystem::path const DEFAULT_TOPIC_FILE = "data/topics.txt";
-// std::filesystem::path const DEFAULT_NICKNAME_FILE = "/home/fae/School/Magisterka/2-sem/PAUM/GroupChatTuringTest/data/nickname_icon_color.csv";
-std::filesystem::path const DEFAULT_NICKNAME_FILE = "data/nickname_icon_color.csv";
+std::filesystem::path const DEFAULT_NICKNAME_FILE = "data/nickname_color.csv";
 
 
 Lobby::Lobby(uWS::App & server, uWS::Loop * p_loop, int32_t lobbyId, std::string const & creatorUsername, int32_t maxUsers, int32_t roundsNumber)
@@ -25,18 +26,36 @@ Lobby::Lobby(uWS::App & server, uWS::Loop * p_loop, int32_t lobbyId, std::string
      m_roundsNumber{roundsNumber},
      m_currentRound{0},
      m_state{LobbyState::IN_LOBBY},
-    //  m_inLobby{true},
-    //  m_startGame{false},
-    //  m_startNewRound{false},
-    //  m_startVoting{false},
+     m_zmqSocketType{zmqpp::socket_type::req},
+     m_zmqSocket{zmqpp::socket(m_zmqContext, m_zmqSocketType)},
+     m_isSocketConnected{false},
      m_msgsSmph{0}
 {
     m_clientsIds.reserve(m_maxUsers);
 
-    m_msgWaitTimeout = std::chrono::system_clock::now() + std::chrono::hours(1);
-
-    // TODO Temporary for testing
+    // Placeholder / inits
+    m_msgWaitTimeout = std::chrono::system_clock::now() + std::chrono::hours(1); 
     m_currentBotNickname = "chatbot";
+
+    // Generate the port number
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    static std::uniform_int_distribution<int32_t> dis(49153, 65535);
+
+    std::string port = std::to_string(dis(gen));
+    // TODO Is there a way to check if any given port is free?
+    
+    m_zmqEndpoint = "tcp://localhost:" + port;
+
+    // Start the chatbot helper script
+    m_chatbotThread = std::jthread([](std::string port)
+    {
+        std::string command{"python3 ./bin/chatbot.py " + port};
+
+        system(command.c_str());
+    }, port);
+    m_chatbotThread.detach();
+    m_lastChatbotMessage = system_clock::now();
 }
 
 Lobby::~Lobby()
@@ -51,7 +70,7 @@ void Lobby::pass_msg(json && data)
 
     if (m_msgs.size() >= static_cast<std::size_t>(m_msgsSmph.max()))
     {
-        // TODO Send back an error?
+        // Send back an error?
     }
 
     m_msgs.push(std::move(data));
@@ -76,14 +95,6 @@ void Lobby::client_disconnected(int32_t clientId)
 
     if (m_clientsIds.size() == 0)
     {
-        // TODO Log that the last client left!
-
-        // while (requestThreadStop() == false)
-        // {
-        //     ;
-        // }
-        // m_isRunning = false;
-
         requestThreadStop();
 
         return;
@@ -147,7 +158,7 @@ void Lobby::startLobbyThread()
                 {
                     case MsgType::ERROR:
                     {
-                        // TODO Later or ignore
+                        // Later or ignore
                     } break;
 
                     case MsgType::CREATE_LOBBY_REQ:
@@ -214,6 +225,47 @@ void Lobby::startLobbyThread()
                 }
 
                 timedout:
+                if (std::chrono::duration_cast<seconds>(system_clock::now() - self->m_lastChatbotMessage).count() > CHATBOT_MESSAGE_PERIOD_SECONDS
+                    && self->m_isSocketConnected
+                    && self->m_state == LobbyState::PLAYING)
+                {
+                    zmqpp::message message;
+                    if (self->m_chatLogs.empty())
+                    {
+                        message << "...";
+                    }
+                    else
+                    {
+                        message << self->m_chatLogs;
+                    }
+                    self->m_zmqSocket.send(message);
+                    self->m_chatLogs.clear();
+                    std::string buffer;
+                    self->m_zmqSocket.receive(buffer);
+
+                    if (auto pos = std::find(buffer.begin(), buffer.end(), ':'); pos != buffer.end())
+                    {
+                        // If the AI returns the message in a <user>: <message> format, try to cut it
+                        buffer.erase(buffer.begin(), pos);
+                    }
+
+                    if (buffer[buffer.length() - 1] == '\n')
+                    {
+                        buffer.pop_back();
+                    }
+
+                    json msgData;
+                    msgData["chatMsg"] = buffer;
+
+                    (void) self->post_new_chat_handler(self, msgData, true);
+
+                    self->m_lastChatbotMessage = system_clock::now();
+                    if (self->m_msgWaitTimeout > (system_clock::now() + seconds(CHATBOT_MESSAGE_PERIOD_SECONDS)))
+                    {
+                        self->m_msgWaitTimeout = system_clock::now() + seconds(CHATBOT_MESSAGE_PERIOD_SECONDS);
+                    }
+                }
+
                 switch (self->m_state)
                 {
                     case LobbyState::IN_LOBBY:
@@ -223,8 +275,8 @@ void Lobby::startLobbyThread()
 
                     case LobbyState::GAME_STARTING:
                     {
-                        // Check if the timeout (waiting for READY_STATE_CLIENT_WAIT_SECODS) happened
-                        bool clientReadyStateTimeout = std::chrono::duration_cast<seconds>(system_clock::now() - self->m_lastStateTimepoint).count() > READY_STATE_CLIENT_WAIT_SECODS;
+                        // Check if the timeout (waiting for READY_STATE_CLIENT_WAIT_SECONDS) happened
+                        bool clientReadyStateTimeout = std::chrono::duration_cast<seconds>(system_clock::now() - self->m_lastStateTimepoint).count() > READY_STATE_CLIENT_WAIT_SECONDS;
                         
                         if (clientReadyStateTimeout)
                         {
@@ -239,20 +291,46 @@ void Lobby::startLobbyThread()
 
                     case LobbyState::NEW_ROUND:
                     {
+                        self->m_chatLogs.clear();
+                        
                         self->m_currentRound++;
 
                         std::unique_lock lock{self->m_mutex};
-                        std::vector<std::string> nicknames = Lobby::get_random_nicknames(self->m_clientsIds.size(), DEFAULT_NICKNAME_FILE);
+                        std::vector<std::pair<std::string, std::string>> nicknameColors = Lobby::get_random_nicknames(self->m_clientsIds.size() + 1, DEFAULT_NICKNAME_FILE);
                         
-                        assert(nicknames.size() == self->m_clientNicknames.size());
+                        assert(nicknameColors.size() == self->m_clientsIds.size() + 1);
 
                         int32_t i{0};
                         for (auto & client : self->m_clientNicknames)
                         {
-                            client.second = nicknames[i];
+                            client.second = nicknameColors[i].first;
                             i++;
                         }
                         lock.unlock();
+                        self->m_currentBotNickname = nicknameColors[i].first;
+
+                        self->m_currentTopic = Lobby::read_topic_from_file(DEFAULT_TOPIC_FILE);
+
+                        {
+                            std::string nicknamesAuxStr;
+                            for (auto const & p : nicknameColors)
+                            {
+                                nicknamesAuxStr += p.first + ", ";
+                            }
+                            nicknamesAuxStr.pop_back(); // Remove ' '
+                            nicknamesAuxStr.pop_back(); // Remove ','
+                            nicknamesAuxStr += ",NEW";  // Identifier
+                            zmqpp::message message;
+                            message << nicknamesAuxStr;
+                            self->m_zmqSocket.send(message);
+                            std::string doNotDelete;
+                            self->m_zmqSocket.receive(doNotDelete);
+
+                            zmqpp::message asd;
+                            asd << self->m_currentTopic;
+                            self->m_zmqSocket.send(asd);
+                            self->m_zmqSocket.receive(doNotDelete);
+                        }
 
                         json msg;
                         msg["msgType"] = static_cast<int32_t>(MsgType::NEW_ROUND);
@@ -261,11 +339,21 @@ void Lobby::startLobbyThread()
                         msg["roundDurationSec"] = static_cast<int32_t>(ROUND_LENGTH_SECONDS);
                         msg["roundNum"] = self->m_currentRound;
 
+                        msg["nicknameColors"] = json::object();
+                        for (std::pair<std::string, std::string> const & nc : nicknameColors)
+                        {
+                            msg["nicknameColors"][nc.first] = nc.second;
+                        }
+
                         self->send_to_all_clients(msg);
 
                         self->m_state = LobbyState::PLAYING;
                         self->m_lastStateTimepoint = system_clock::now();
                         self->m_msgWaitTimeout = self->m_lastStateTimepoint + seconds(ROUND_LENGTH_SECONDS);
+                        if (self->m_msgWaitTimeout > (system_clock::now() + seconds(CHATBOT_MESSAGE_PERIOD_SECONDS)))
+                        {
+                            self->m_msgWaitTimeout = system_clock::now() + seconds(CHATBOT_MESSAGE_PERIOD_SECONDS);
+                        }
                     } break;
 
                     case LobbyState::PLAYING:
@@ -274,19 +362,32 @@ void Lobby::startLobbyThread()
 
                         if (startVote == false)
                         {
+                            int64_t secondsUntillNextState      = ROUND_ENDED_LENGTH_SECONDS - std::chrono::duration_cast<seconds>(system_clock::now() - self->m_lastStateTimepoint).count();
+                            int64_t secondsUntillNextChatbotMsg = CHATBOT_MESSAGE_PERIOD_SECONDS - std::chrono::duration_cast<seconds>(system_clock::now() - self->m_lastChatbotMessage).count();
+
+                            if (secondsUntillNextState > secondsUntillNextChatbotMsg)
+                            {
+                                self->m_msgWaitTimeout = system_clock::now() + seconds(secondsUntillNextChatbotMsg);
+                            }
+                            else
+                            {
+                                self->m_msgWaitTimeout = system_clock::now() + seconds(secondsUntillNextState);
+                            }
+
                             break;
                         }
 
                         json msg;
                         msg["msgType"] = static_cast<int32_t>(MsgType::GUESS_BOT_REQ);
                         msg["lobbyId"] = self->m_id;
-                        msg["votingTimeSec"] = static_cast<int32_t>(VOTING_LENGTH_SECONDS - 5);
+                        msg["votingTimeSec"] = static_cast<int32_t>(VOTING_LENGTH_SECONDS - TIME_BUFFER);
                         msg["usersNicknames"] = json::object();
                         std::unique_lock lock{self->m_mutex};
                         for (std::pair<int32_t, std::string> const & clientNickname : self->m_clientNicknames)
                         {
                             msg["usersNicknames"][std::to_string(clientNickname.first)/*clientId*/] = clientNickname.second/*nickname*/;
                         }
+                        msg["usersNicknames"]["-1"] = self->m_currentBotNickname;
                         lock.unlock();
                         self->send_to_all_clients(msg);
 
@@ -354,6 +455,10 @@ void Lobby::startLobbyThread()
             }
 
             std::cout << "Lobby (" << self->m_id << ") Getting out of the logic loop" << std::endl;
+
+            zmqpp::message message;
+            message << ";;;;;;;;";
+            self->m_zmqSocket.send(message);
 
             self->close_lobby();
 
@@ -493,7 +598,7 @@ auto Lobby::join_lobby_req_handler(Lobby * self, nlohmann::json const & data) ->
     return resp;
 }
 
-auto Lobby::post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> nlohmann::json
+auto Lobby::post_new_chat_handler(Lobby * self, nlohmann::json const & data, bool chatbot) -> nlohmann::json
 {
     bool isMsgInvalid = data.value<std::string>("chatMsg", "").length() == 0;
     if (isMsgInvalid)
@@ -510,8 +615,21 @@ auto Lobby::post_new_chat_handler(Lobby * self, nlohmann::json const & data) -> 
     chatMsg["lobbyId"] = self->m_id;
     chatMsg["chatMsg"] = data.value<std::string>("chatMsg", "");
     chatMsg["senderId"] = data.value<int32_t>("clientId", -1);
-    chatMsg["senderUsername"] = ServerLogic::get_username_by_client_id(data.value<int32_t>("clientId", -1));
-    chatMsg["senderNickname"] = self->m_clientNicknames.at(data.value<int32_t>("clientId", -1));
+    if (chatbot)
+    {
+        chatMsg["senderUsername"] = "chatbot";
+        chatMsg["senderNickname"] = self->m_currentBotNickname;
+    }
+    else
+    {
+        chatMsg["senderUsername"] = ServerLogic::get_username_by_client_id(data.value<int32_t>("clientId", -1));
+        chatMsg["senderNickname"] = self->m_clientNicknames.at(data.value<int32_t>("clientId", -1));
+
+        self->m_chatLogs += self->m_clientNicknames.at(data.value<int32_t>("clientId", -1)) 
+                            + ": " 
+                            + data.value<std::string>("chatMsg", "") 
+                            + '\n';
+    }
 
     self->send_to_all_clients(chatMsg);
 
@@ -528,7 +646,7 @@ auto Lobby::start_game_handler(Lobby * self, nlohmann::json const & data) -> nlo
         msg["note"] = "start-game when not in lobby!";
         return msg;
     }
-    
+
     json msg;
     msg["msgType"] = static_cast<int32_t>(MsgType::GAME_STARTED);
     msg["lobbyId"] = self->m_id;
@@ -536,14 +654,13 @@ auto Lobby::start_game_handler(Lobby * self, nlohmann::json const & data) -> nlo
     self->send_to_all_clients(msg);
 
     self->m_state = LobbyState::GAME_STARTING;
-    // self->m_inLobby = false;
-    // self->m_startGame = true;
-    // self->m_startNewRound = false;
-    
-    // self->m_newRoundStartTimepoint = std::chrono::system_clock::now();
     self->m_lastStateTimepoint = std::chrono::system_clock::now();
     
-    self->m_msgWaitTimeout = std::chrono::system_clock::now() + seconds(READY_STATE_CLIENT_WAIT_SECODS);
+    self->m_msgWaitTimeout = std::chrono::system_clock::now() + seconds(READY_STATE_CLIENT_WAIT_SECONDS);
+
+    self->m_zmqSocket.connect(self->m_zmqEndpoint);
+    m_isSocketConnected = true;
+    self->m_lastChatbotMessage = std::chrono::system_clock::now();
 
     return json{};
 }
@@ -619,9 +736,10 @@ auto Lobby::read_topic_from_file(std::filesystem::path const & path) -> std::str
     return line;
 }
 
-auto Lobby::get_random_nicknames(int32_t count, std::filesystem::path const & path) -> std::vector<std::string>
+auto Lobby::get_random_nicknames(int32_t count, std::filesystem::path const & path) -> std::vector<std::pair<std::string, std::string>>
 {
     std::vector<std::string> nicknames;
+    std::vector<std::pair<std::string, std::string>> nicknameColor;
 
     bool fileExists = std::filesystem::is_regular_file(path);
 
@@ -629,18 +747,18 @@ auto Lobby::get_random_nicknames(int32_t count, std::filesystem::path const & pa
     {
         for (int32_t i{0}; i < count; i++)
         {
-            nicknames.emplace_back("NicknamesNotFound");
+            nicknameColor.emplace_back(std::pair<std::string, std::string>{"NicknamesNotFound", "#000000"});
         }
-        return nicknames;
+        return nicknameColor;
     }
 
     std::ifstream file(path);
     if (file.is_open() == false) {
         for (int32_t i{0}; i < count; i++)
         {
-            nicknames.emplace_back("FailedToOpenFile");
+            nicknameColor.emplace_back(std::pair<std::string, std::string>{"FailedToOpenFile", "#000000"});
         }
-        return nicknames;
+        return nicknameColor;
     }
 
     size_t lineCount{0};
@@ -653,18 +771,18 @@ auto Lobby::get_random_nicknames(int32_t count, std::filesystem::path const & pa
     {
         for (int32_t i{0}; i < count; i++)
         {
-            nicknames.emplace_back("NoNicknamesInFile");
+            nicknameColor.emplace_back(std::pair<std::string, std::string>{"NoNicknamesInFile", "#000000"});
         }
-        return nicknames;
+        return nicknameColor;
     }
 
     if (lineCount < count)
     {
         for (int32_t i{0}; i < count; i++)
         {
-            nicknames.emplace_back("TooFewNicknamesInFile");
+            nicknameColor.emplace_back(std::pair<std::string, std::string>{"TooFewNicknamesInFile", "#000000"});
         }
-        return nicknames;
+        return nicknameColor;
     }
 
     file.clear();
@@ -702,12 +820,12 @@ auto Lobby::get_random_nicknames(int32_t count, std::filesystem::path const & pa
 
     for (std::string & nicknameLine : nicknames)
     {
-        std::string::iterator firstCommaIt = std::find(nicknameLine.begin(), nicknameLine.end(), ',');
+        std::size_t commaPos = nicknameLine.find(',');
 
-        nicknameLine.erase(firstCommaIt, nicknameLine.end());
+        nicknameColor.emplace_back(std::pair<std::string, std::string>{nicknameLine.substr(0, commaPos), nicknameLine.substr(commaPos + 1)});
     }
 
-    return nicknames;
+    return nicknameColor;
 }
 
 void Lobby::close_lobby()

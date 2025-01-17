@@ -300,6 +300,7 @@ Message sent out to all clients associated with a specific lobby when a new roun
 | topic | string | Yes |
 | roundDurationSec | int32 | Yes |
 | roundNum | int32 | Yes |
+| nicknameColors | dict(string, string) | Yes |
 | note | string | No |
 
 ```javascript
@@ -310,6 +311,11 @@ Message sent out to all clients associated with a specific lobby when a new roun
     "topic": "What do you like about being alive and definetly not about being a chatbot",
     "roundDurationSec": 180,
     "roundNum": 1,
+    "nicknameColors": {
+        "Frog": "#10ad22",
+        "Bird": "#FFDD21",
+        ...
+    },
     "note": "This is the optional note, not needed for the communication protocol. Can be used for additional info when debugging or something"
 }
 ```

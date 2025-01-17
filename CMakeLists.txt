@@ -63,4 +63,6 @@ target_link_libraries(
     ${EXECUTABLE_NAME}
     
     uWebSockets
+    -lzmqpp
+    -lzmq
 )
